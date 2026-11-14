@@ -47,6 +47,8 @@ fun HomeScreen(
     onOpenLab: () -> Unit,
 ) {
     val gattState by viewModel.gattState.collectAsState()
+    val reconnecting by viewModel.reconnecting.collectAsState()
+    val lastDevice by viewModel.lastDevice.collectAsState()
 
     Scaffold { innerPadding ->
         LazyColumn(
@@ -57,7 +59,14 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item { HomeHeader() }
-            item { ConnectionCard(gattState, onOpenConnect) }
+            item {
+                ConnectionCard(
+                    state = gattState,
+                    reconnecting = reconnecting,
+                    lastDeviceName = lastDevice?.name,
+                    onClick = onOpenConnect,
+                )
+            }
             item { SectionGrid(onOpenSection) }
             item { LabRow(onOpenLab) }
             item {
@@ -110,35 +119,51 @@ private fun HomeHeader() {
 }
 
 @Composable
-private fun ConnectionCard(state: GattState, onClick: () -> Unit) {
+private fun ConnectionCard(
+    state: GattState,
+    reconnecting: Boolean,
+    lastDeviceName: String?,
+    onClick: () -> Unit,
+) {
     val connected = state.connected
-    val container = if (connected) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.surfaceVariant
+    val container = when {
+        connected -> MaterialTheme.colorScheme.primaryContainer
+        reconnecting -> MaterialTheme.colorScheme.secondaryContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant
     }
-    val content = if (connected) {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
+    val content = when {
+        connected -> MaterialTheme.colorScheme.onPrimaryContainer
+        reconnecting -> MaterialTheme.colorScheme.onSecondaryContainer
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     val title = stringResource(
-        if (connected) R.string.home_status_connected else R.string.home_status_disconnected,
+        when {
+            connected -> R.string.home_status_connected
+            reconnecting -> R.string.home_status_reconnecting
+            else -> R.string.home_status_disconnected
+        },
     )
-    val details = if (connected) {
-        val servicesText = pluralStringResource(
-            R.plurals.services_count,
-            state.services.size,
-            state.services.size,
+    val details = when {
+        connected -> {
+            val servicesText = pluralStringResource(
+                R.plurals.services_count,
+                state.services.size,
+                state.services.size,
+            )
+            stringResource(
+                R.string.home_status_connected_details,
+                state.deviceName ?: stringResource(R.string.device_unknown),
+                state.mtu,
+                servicesText,
+            )
+        }
+
+        reconnecting -> stringResource(
+            R.string.home_status_reconnecting_details,
+            lastDeviceName ?: stringResource(R.string.device_unknown),
         )
-        stringResource(
-            R.string.home_status_connected_details,
-            state.deviceName ?: stringResource(R.string.device_unknown),
-            state.mtu,
-            servicesText,
-        )
-    } else {
-        stringResource(R.string.home_status_disconnected_details)
+
+        else -> stringResource(R.string.home_status_disconnected_details)
     }
 
     Surface(

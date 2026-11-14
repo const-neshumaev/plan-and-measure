@@ -35,6 +35,7 @@ import com.planmeasure.R
 fun LabFlow(viewModel: LabViewModel, onExit: () -> Unit) {
     val screen by viewModel.screen.collectAsState()
     val gattState by viewModel.gattState.collectAsState()
+    val lastDevice by viewModel.lastDevice.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(viewModel) {
@@ -76,11 +77,13 @@ fun LabFlow(viewModel: LabViewModel, onExit: () -> Unit) {
                         LabScreen.Device -> Column {
                             Text(
                                 text = gattState.deviceName
+                                    ?: lastDevice?.name
                                     ?: stringResource(R.string.device_unknown),
                                 style = MaterialTheme.typography.titleMedium,
                             )
                             Text(
-                                text = gattState.deviceAddress.orEmpty(),
+                                text = gattState.deviceAddress
+                                    ?: lastDevice?.address.orEmpty(),
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         }
