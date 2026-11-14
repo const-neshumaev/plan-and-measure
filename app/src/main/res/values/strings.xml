@@ -18,6 +18,8 @@
         <item quantity="other">%1$d services</item>
     </plurals>
     <string name="home_status_disconnected_details">Tap to scan and connect</string>
+    <string name="home_status_reconnecting">Restoring connection…</string>
+    <string name="home_status_reconnecting_details">%1$s · trying to reconnect</string>
     <string name="home_version">Version %1$s</string>
     <string name="home_open_lab">BLE Lab</string>
     <string name="home_open_lab_details">Protocol research: GATT tree and packet log</string>
@@ -33,6 +35,8 @@
     <string name="connect_section_other">Other devices</string>
     <string name="connect_connected_title">Rangefinder connected</string>
     <string name="connect_connected_hint">The app is ready to receive measurements.</string>
+    <string name="connect_reconnecting">Restoring connection to %1$s…</string>
+    <string name="connect_reconnect_cancel">Cancel</string>
     <string name="connect_done">Done</string>
     <string name="connect_disconnect">Disconnect</string>
 

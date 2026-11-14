@@ -25,6 +25,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -58,6 +59,8 @@ fun ConnectScreen(viewModel: LabViewModel, onDone: () -> Unit) {
     val devices by viewModel.devices.collectAsState()
     val scanning by viewModel.scanning.collectAsState()
     val connectingAddress by viewModel.connectingAddress.collectAsState()
+    val reconnecting by viewModel.reconnecting.collectAsState()
+    val lastDevice by viewModel.lastDevice.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(viewModel) {
@@ -102,6 +105,8 @@ fun ConnectScreen(viewModel: LabViewModel, onDone: () -> Unit) {
                         devices = devices,
                         scanning = scanning,
                         connectingAddress = connectingAddress,
+                        reconnecting = reconnecting,
+                        lastDeviceName = lastDevice?.name,
                     )
                 }
             }
@@ -115,6 +120,8 @@ private fun DiscoveryContent(
     devices: List<ScanItem>,
     scanning: Boolean,
     connectingAddress: String?,
+    reconnecting: Boolean,
+    lastDeviceName: String?,
 ) {
     // connect() stops scanning; resume discovery when an attempt finishes without a connection.
     LaunchedEffect(connectingAddress) {
@@ -143,6 +150,13 @@ private fun DiscoveryContent(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+
+        if (reconnecting) {
+            RestoringBanner(
+                deviceName = lastDeviceName ?: stringResource(R.string.device_unknown),
+                onCancel = viewModel::cancelReconnect,
+            )
+        }
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -209,6 +223,35 @@ private fun DiscoveryContent(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RestoringBanner(deviceName: String, onCancel: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(18.dp),
+                strokeWidth = 2.dp,
+            )
+            Text(
+                text = stringResource(R.string.connect_reconnecting, deviceName),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onCancel) {
+                Text(stringResource(R.string.connect_reconnect_cancel))
             }
         }
     }

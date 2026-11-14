@@ -20,6 +20,8 @@
         <item quantity="other">%1$d сервиса</item>
     </plurals>
     <string name="home_status_disconnected_details">Нажмите, чтобы найти и подключить</string>
+    <string name="home_status_reconnecting">Восстанавливаем соединение…</string>
+    <string name="home_status_reconnecting_details">%1$s · пытаемся подключиться снова</string>
     <string name="home_version">Версия %1$s</string>
     <string name="home_open_lab">BLE-лаборатория</string>
     <string name="home_open_lab_details">Исследование протокола: GATT-дерево и журнал пакетов</string>
@@ -35,6 +37,8 @@
     <string name="connect_section_other">Другие устройства</string>
     <string name="connect_connected_title">Дальномер подключён</string>
     <string name="connect_connected_hint">Приложение готово принимать измерения.</string>
+    <string name="connect_reconnecting">Восстанавливаем соединение с %1$s…</string>
+    <string name="connect_reconnect_cancel">Отменить</string>
     <string name="connect_done">Готово</string>
     <string name="connect_disconnect">Отключить</string>
 
