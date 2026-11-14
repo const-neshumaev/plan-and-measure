@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Plan &amp; Measure</string>
+
+    <!-- Common -->
+    <string name="action_back">Назад</string>
+    <string name="action_add">Добавить</string>
+    <string name="action_cancel">Отмена</string>
+    <string name="demo_banner">Демо-контент: функционал появится позже</string>
+
+    <!-- Home -->
+    <string name="home_tagline">Замеры, фото и планы помещений</string>
+    <string name="home_status_connected">Дальномер подключён</string>
+    <string name="home_status_disconnected">Дальномер не подключён</string>
+    <string name="home_status_connected_details">%1$s · MTU %2$d · %3$s</string>
+    <plurals name="services_count">
+        <item quantity="one">%1$d сервис</item>
+        <item quantity="few">%1$d сервиса</item>
+        <item quantity="many">%1$d сервисов</item>
+        <item quantity="other">%1$d сервиса</item>
+    </plurals>
+    <string name="home_status_disconnected_details">Нажмите, чтобы найти и подключить</string>
+    <string name="home_version">Версия %1$s</string>
+    <string name="home_open_lab">BLE-лаборатория</string>
+    <string name="home_open_lab_details">Исследование протокола: GATT-дерево и журнал пакетов</string>
+
+    <!-- Connect -->
+    <string name="connect_title">Подключение дальномера</string>
+    <string name="connect_hint">Включите дальномер и его Bluetooth-режим. Приложение найдёт его автоматически.</string>
+    <string name="connect_scanning">Поиск… найдено: %1$d</string>
+    <string name="connect_empty">Пока пусто.\nПроверьте, что дальномер включён и его Bluetooth-режим активирован.</string>
+    <string name="connect_rangefinder_signal">Дальномер · %1$d dBm</string>
+    <string name="connect_signal">Сигнал %1$d dBm</string>
+    <string name="connect_section_rangefinder">Дальномер</string>
+    <string name="connect_section_other">Другие устройства</string>
+    <string name="connect_connected_title">Дальномер подключён</string>
+    <string name="connect_connected_hint">Приложение готово принимать измерения.</string>
+    <string name="connect_done">Готово</string>
+    <string name="connect_disconnect">Отключить</string>
+
+    <!-- Sections -->
+    <string name="section_measurements">Измерения</string>
+    <string name="section_measurements_details">Текущие показания и история</string>
+    <string name="section_projects">Проекты</string>
+    <string name="section_projects_details">Помещения, планы и замеры</string>
+    <string name="section_capture">Съёмка</string>
+    <string name="section_capture_details">Фото, привязанные к замерам</string>
+    <string name="section_settings">Настройки</string>
+    <string name="section_settings_details">Тема и язык</string>
+
+    <!-- Measurements (placeholder) -->
+    <string name="measurements_last">Последний замер</string>
+    <string name="measurements_value">%1$s м</string>
+    <string name="measurements_unit_m">м</string>
+    <string name="measurements_recent">Недавние</string>
+    <string name="measurements_connect">Подключить дальномер</string>
+
+    <!-- Projects (placeholder) -->
+    <string name="projects_demo_apartment">Квартира · гостиная</string>
+    <string name="projects_demo_apartment_meta">14 замеров · 3 фото</string>
+    <string name="projects_demo_office">Офис · переговорная</string>
+    <string name="projects_demo_office_meta">8 замеров · 1 фото</string>
+    <string name="projects_new">Новый проект</string>
+
+    <!-- Capture (placeholder) -->
+    <string name="capture_preview">Изображение с камеры</string>
+    <string name="capture_preview_hint">Здесь появится видоискатель камеры.</string>
+    <string name="capture_attach">Привязать последний замер</string>
+
+    <!-- Settings -->
+    <string name="settings_theme">Тема</string>
+    <string name="settings_theme_light">Светлая</string>
+    <string name="settings_theme_dark">Тёмная</string>
+    <string name="settings_language">Язык</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_language_russian">Русский</string>
+
+    <!-- BLE Lab: scan -->
+    <string name="lab_title">BLE-лаборатория</string>
+    <string name="lab_subtitle">Исследование протокола</string>
+    <string name="device_unknown">Устройство</string>
+    <string name="scan_start">Начать поиск</string>
+    <string name="scan_stop">Остановить поиск</string>
+    <string name="scan_request_mtu">Запрашивать MTU 517</string>
+    <plurals name="scan_scanning">
+        <item quantity="one">Поиск… найдено устройств: %1$d</item>
+        <item quantity="few">Поиск… найдено устройств: %1$d</item>
+        <item quantity="many">Поиск… найдено устройств: %1$d</item>
+        <item quantity="other">Поиск… найдено устройств: %1$d</item>
+    </plurals>
+    <plurals name="scan_found">
+        <item quantity="one">Найдено устройств: %1$d</item>
+        <item quantity="few">Найдено устройств: %1$d</item>
+        <item quantity="many">Найдено устройств: %1$d</item>
+        <item quantity="other">Найдено устройств: %1$d</item>
+    </plurals>
+    <string name="scan_empty">Пока пусто.\nВключите дальномер и его Bluetooth-режим.</string>
+    <string name="scan_connect">Подключить</string>
+    <string name="scan_unnamed">Устройство без имени</string>
+    <string name="scan_rssi">RSSI %1$d dBm</string>
+    <string name="scan_rssi_not_connectable">RSSI %1$d dBm · нет подключения</string>
+    <string name="scan_services">сервисы: %1$s</string>
+    <string name="scan_manufacturer">произв.: %1$s</string>
+    <string name="permissions_title">Нужны разрешения</string>
+    <string name="permissions_text">Для связи с дальномером нужны разрешения на поиск и подключение Bluetooth-устройств.</string>
+    <string name="permissions_action">Выдать разрешения</string>
+    <string name="bluetooth_off_title">Bluetooth выключен</string>
+    <string name="bluetooth_off_text">Включите Bluetooth, чтобы искать устройства рядом.</string>
+    <string name="bluetooth_off_action">Открыть настройки Bluetooth</string>
+
+    <!-- BLE Lab: device -->
+    <string name="device_connected">подключено</string>
+    <string name="device_disconnected">не подключено</string>
+    <string name="device_mtu">MTU %1$d</string>
+    <plurals name="device_services">
+        <item quantity="one">%1$d сервис</item>
+        <item quantity="few">%1$d сервиса</item>
+        <item quantity="many">%1$d сервисов</item>
+        <item quantity="other">%1$d сервиса</item>
+    </plurals>
+    <string name="device_tab_gatt">GATT</string>
+    <string name="device_tab_log">Журнал (%1$d)</string>
+    <string name="device_write_title">Команда записи</string>
+    <string name="device_no_writable">У этого устройства нет характеристик для записи.</string>
+    <string name="device_hex">Hex</string>
+    <string name="device_text">Текст</string>
+    <string name="device_payload_text">Текст</string>
+    <string name="device_payload_hex">Hex</string>
+    <string name="device_payload_text_hint">напр. START</string>
+    <string name="device_payload_hex_hint">напр. AA 55 01</string>
+    <string name="device_error_empty_text">Введите хотя бы один символ</string>
+    <string name="device_error_invalid_hex">Неверный hex, ожидаются пары вида AA 55 01</string>
+    <string name="device_append_crlf">Добавлять CR LF (0D 0A)</string>
+    <string name="device_write_with_response">Записывать с подтверждением</string>
+    <string name="device_send">Отправить</string>
+    <string name="device_subscribe_all">Подписать все</string>
+    <string name="device_read_all">Прочитать все</string>
+    <string name="device_read">Прочитать</string>
+    <string name="device_notifying">подписка включена</string>
+    <string name="device_not_notifying">подписка выключена</string>
+    <string name="device_descriptors">дескрипторы: %1$s</string>
+    <string name="device_marker">Маркер</string>
+    <string name="device_export_csv">CSV</string>
+    <string name="device_export_gatt">GATT</string>
+    <string name="device_copy_log">Копировать журнал</string>
+    <string name="device_clear">Очистить</string>
+    <string name="device_log_copied">Журнал скопирован</string>
+    <string name="device_saved">Сохранено</string>
+    <string name="device_save_failed">Не удалось сохранить: %1$s</string>
+    <string name="device_marker_title">Добавить маркер в журнал</string>
+    <string name="device_marker_text">Опишите показания дисплея или только что выполненное действие.</string>
+    <string name="device_marker_label">Маркер</string>
+    <string name="device_marker_hint">напр. display 1.234 m, mode: length</string>
+    <string name="device_marker_default">маркер</string>
+
+    <!-- BLE Lab: messages -->
+    <string name="error_invalid_address">Неверный адрес устройства</string>
+    <string name="error_connection_failed">Не удалось подключиться</string>
+    <string name="error_discovery_failed">Не удалось получить сервисы</string>
+    <string name="error_notifications">Не удалось изменить подписку</string>
+    <string name="error_read_failed">Не удалось прочитать</string>
+    <string name="error_write_failed">Не удалось записать</string>
+    <plurals name="msg_read_count">
+        <item quantity="one">Прочитано характеристик: %1$d</item>
+        <item quantity="few">Прочитано характеристик: %1$d</item>
+        <item quantity="many">Прочитано характеристик: %1$d</item>
+        <item quantity="other">Прочитано характеристик: %1$d</item>
+    </plurals>
+    <plurals name="msg_subscribed_count">
+        <item quantity="one">Оформлено подписок: %1$d</item>
+        <item quantity="few">Оформлено подписок: %1$d</item>
+        <item quantity="many">Оформлено подписок: %1$d</item>
+        <item quantity="other">Оформлено подписок: %1$d</item>
+    </plurals>
+</resources>
