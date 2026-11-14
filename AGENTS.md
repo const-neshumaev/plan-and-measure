@@ -17,8 +17,12 @@ Android-приложение для лазерного дальномера Inst
 
 ## Окружение
 
-- Рабочая машина: Windows. В текущем окружении нет Android SDK и JDK 17+, поэтому `gradlew` здесь не запускается.
-- Сборка выполняется пользователем в Android Studio (JDK из поставки, SDK 34) или через `gradlew` после установки JDK 17.
+- Рабочая машина: Windows. JDK и Android SDK установлены, `gradlew` работает локально — агент собирает и проверяет проект сам, не перекладывая это на пользователя.
+- JDK: `D:\Programming\IDE\Java\jdk.19` (Temurin 19.0.2). `JAVA_HOME` в системе не задан, поэтому путь передаётся явно в каждой команде.
+- Android SDK: `D:\Programming\IDE\Android\SDK` (platforms: `android-29`, `android-34`). Уже прописан в `local.properties` (`sdk.dir`); файл локален и не коммитится.
+- Сборка debug: `JAVA_HOME="D:/Programming/IDE/Java/jdk.19" ./gradlew assembleDebug --console=plain`. Артефакт — `app/build/outputs/apk/debug/app-debug.apk`.
+- Юнит-тесты: `JAVA_HOME="D:/Programming/IDE/Java/jdk.19" ./gradlew testDebugUnitTest --console=plain`.
+- JDK 19 новее эталонного для AGP 8.5.2 (JDK 17). Сборка на нём проверена; если появится ошибка тулчейна, лечится установкой JDK 17, а не сменой версий Gradle/AGP.
 - Целевое устройство: Xiaomi 11T, Android 14 (API 34). `minSdk = 24`, `compileSdk = 34`, `targetSdk = 34`.
 - Gradle 8.7, AGP 8.5.2, Kotlin 2.0.21, Compose BOM 2024.06.00. Менять версии только осознанно и с объяснением.
 
