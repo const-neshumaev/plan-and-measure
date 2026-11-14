@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Plan &amp; Measure</string>
+
+    <!-- Common -->
+    <string name="action_back">Back</string>
+    <string name="action_add">Add</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="demo_banner">Demo content: functionality is coming soon</string>
+
+    <!-- Home -->
+    <string name="home_tagline">Measurements, photos and room plans</string>
+    <string name="home_status_connected">Rangefinder connected</string>
+    <string name="home_status_disconnected">Rangefinder not connected</string>
+    <string name="home_status_connected_details">%1$s · MTU %2$d · %3$s</string>
+    <plurals name="services_count">
+        <item quantity="one">%1$d service</item>
+        <item quantity="other">%1$d services</item>
+    </plurals>
+    <string name="home_status_disconnected_details">Tap to scan and connect</string>
+    <string name="home_version">Version %1$s</string>
+    <string name="home_open_lab">BLE Lab</string>
+    <string name="home_open_lab_details">Protocol research: GATT tree and packet log</string>
+
+    <!-- Connect -->
+    <string name="connect_title">Connect rangefinder</string>
+    <string name="connect_hint">Turn on the rangefinder and enable its Bluetooth mode. The app will find it automatically.</string>
+    <string name="connect_scanning">Searching… found: %1$d</string>
+    <string name="connect_empty">No devices yet.\nCheck that the rangefinder is on and its Bluetooth mode is enabled.</string>
+    <string name="connect_rangefinder_signal">Rangefinder · %1$d dBm</string>
+    <string name="connect_signal">Signal %1$d dBm</string>
+    <string name="connect_section_rangefinder">Rangefinder</string>
+    <string name="connect_section_other">Other devices</string>
+    <string name="connect_connected_title">Rangefinder connected</string>
+    <string name="connect_connected_hint">The app is ready to receive measurements.</string>
+    <string name="connect_done">Done</string>
+    <string name="connect_disconnect">Disconnect</string>
+
+    <!-- Sections -->
+    <string name="section_measurements">Measurements</string>
+    <string name="section_measurements_details">Live readings and history</string>
+    <string name="section_projects">Projects</string>
+    <string name="section_projects_details">Rooms, plans and measurements</string>
+    <string name="section_capture">Capture</string>
+    <string name="section_capture_details">Photos linked to measurements</string>
+    <string name="section_settings">Settings</string>
+    <string name="section_settings_details">Theme and language</string>
+
+    <!-- Measurements (placeholder) -->
+    <string name="measurements_last">Last measurement</string>
+    <string name="measurements_value">%1$s m</string>
+    <string name="measurements_unit_m">m</string>
+    <string name="measurements_recent">Recent</string>
+    <string name="measurements_connect">Connect rangefinder</string>
+
+    <!-- Projects (placeholder) -->
+    <string name="projects_demo_apartment">Apartment · living room</string>
+    <string name="projects_demo_apartment_meta">14 measurements · 3 photos</string>
+    <string name="projects_demo_office">Office · meeting room</string>
+    <string name="projects_demo_office_meta">8 measurements · 1 photo</string>
+    <string name="projects_new">New project</string>
+
+    <!-- Capture (placeholder) -->
+    <string name="capture_preview">Camera preview</string>
+    <string name="capture_preview_hint">The camera viewfinder will appear here.</string>
+    <string name="capture_attach">Attach last measurement</string>
+
+    <!-- Settings -->
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_language_russian">Русский</string>
+
+    <!-- BLE Lab: scan -->
+    <string name="lab_title">BLE Lab</string>
+    <string name="lab_subtitle">Protocol research</string>
+    <string name="device_unknown">Device</string>
+    <string name="scan_start">Start scan</string>
+    <string name="scan_stop">Stop scan</string>
+    <string name="scan_request_mtu">Request MTU 517</string>
+    <plurals name="scan_scanning">
+        <item quantity="one">Scanning… %1$d device</item>
+        <item quantity="other">Scanning… %1$d devices</item>
+    </plurals>
+    <plurals name="scan_found">
+        <item quantity="one">%1$d device found</item>
+        <item quantity="other">%1$d devices found</item>
+    </plurals>
+    <string name="scan_empty">No devices yet.\nPower on the rangefinder and enable its Bluetooth mode.</string>
+    <string name="scan_connect">Connect</string>
+    <string name="scan_unnamed">Unnamed device</string>
+    <string name="scan_rssi">RSSI %1$d dBm</string>
+    <string name="scan_rssi_not_connectable">RSSI %1$d dBm · not connectable</string>
+    <string name="scan_services">services: %1$s</string>
+    <string name="scan_manufacturer">mfr: %1$s</string>
+    <string name="permissions_title">Permissions required</string>
+    <string name="permissions_text">Bluetooth scanning and connection permissions are needed to talk to the rangefinder.</string>
+    <string name="permissions_action">Grant permissions</string>
+    <string name="bluetooth_off_title">Bluetooth is off</string>
+    <string name="bluetooth_off_text">Turn Bluetooth on to scan for nearby devices.</string>
+    <string name="bluetooth_off_action">Open Bluetooth settings</string>
+
+    <!-- BLE Lab: device -->
+    <string name="device_connected">connected</string>
+    <string name="device_disconnected">disconnected</string>
+    <string name="device_mtu">MTU %1$d</string>
+    <plurals name="device_services">
+        <item quantity="one">%1$d service</item>
+        <item quantity="other">%1$d services</item>
+    </plurals>
+    <string name="device_tab_gatt">GATT</string>
+    <string name="device_tab_log">Log (%1$d)</string>
+    <string name="device_write_title">Write command</string>
+    <string name="device_no_writable">This peripheral has no writable characteristics.</string>
+    <string name="device_hex">Hex</string>
+    <string name="device_text">Text</string>
+    <string name="device_payload_text">Payload text</string>
+    <string name="device_payload_hex">Payload hex</string>
+    <string name="device_payload_text_hint">e.g. START</string>
+    <string name="device_payload_hex_hint">e.g. AA 55 01</string>
+    <string name="device_error_empty_text">Enter at least one character</string>
+    <string name="device_error_invalid_hex">Invalid hex, expected pairs like AA 55 01</string>
+    <string name="device_append_crlf">Append CR LF (0D 0A)</string>
+    <string name="device_write_with_response">Write with response</string>
+    <string name="device_send">Send</string>
+    <string name="device_subscribe_all">Subscribe all</string>
+    <string name="device_read_all">Read all</string>
+    <string name="device_read">Read</string>
+    <string name="device_notifying">notifying</string>
+    <string name="device_not_notifying">not notifying</string>
+    <string name="device_descriptors">descriptors: %1$s</string>
+    <string name="device_marker">Marker</string>
+    <string name="device_export_csv">CSV</string>
+    <string name="device_export_gatt">GATT</string>
+    <string name="device_copy_log">Copy log</string>
+    <string name="device_clear">Clear</string>
+    <string name="device_log_copied">Log copied</string>
+    <string name="device_saved">Saved</string>
+    <string name="device_save_failed">Save failed: %1$s</string>
+    <string name="device_marker_title">Add marker to log</string>
+    <string name="device_marker_text">Describe what the device shows or what you just did.</string>
+    <string name="device_marker_label">Marker</string>
+    <string name="device_marker_hint">e.g. display 1.234 m, mode: length</string>
+    <string name="device_marker_default">marker</string>
+
+    <!-- BLE Lab: messages -->
+    <string name="error_invalid_address">Invalid device address</string>
+    <string name="error_connection_failed">Connection failed</string>
+    <string name="error_discovery_failed">Service discovery failed</string>
+    <string name="error_notifications">Failed to change notifications</string>
+    <string name="error_read_failed">Read failed</string>
+    <string name="error_write_failed">Write failed</string>
+    <plurals name="msg_read_count">
+        <item quantity="one">Read %1$d characteristic</item>
+        <item quantity="other">Read %1$d characteristics</item>
+    </plurals>
+    <plurals name="msg_subscribed_count">
+        <item quantity="one">Subscribed to %1$d characteristic</item>
+        <item quantity="other">Subscribed to %1$d characteristics</item>
+    </plurals>
+</resources>
