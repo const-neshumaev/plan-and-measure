@@ -12,8 +12,8 @@ import com.planmeasure.settings.SettingsViewModel
 import com.planmeasure.ui.connect.ConnectScreen
 import com.planmeasure.ui.home.HomeScreen
 import com.planmeasure.ui.lab.LabFlow
+import com.planmeasure.ui.measurements.MeasurementsFlow
 import com.planmeasure.ui.sections.CaptureScreen
-import com.planmeasure.ui.sections.MeasurementsScreen
 import com.planmeasure.ui.sections.ProjectsScreen
 import com.planmeasure.ui.sections.SettingsScreen
 
@@ -40,7 +40,12 @@ fun AppRoot(
     var labOpen by rememberSaveable { mutableStateOf(false) }
     var connectOpen by rememberSaveable { mutableStateOf(false) }
 
-    BackHandler(enabled = section != null && !labOpen && !connectOpen) { section = null }
+    BackHandler(
+        enabled = section != null &&
+            section != HomeSection.Measurements &&
+            !labOpen &&
+            !connectOpen,
+    ) { section = null }
 
     if (labOpen) {
         LabFlow(viewModel = viewModel, onExit = { labOpen = false })
@@ -60,8 +65,9 @@ fun AppRoot(
             onOpenLab = { labOpen = true },
         )
 
-        HomeSection.Measurements -> MeasurementsScreen(
-            onBack = { section = null },
+        HomeSection.Measurements -> MeasurementsFlow(
+            labViewModel = viewModel,
+            onExit = { section = null },
             onOpenConnect = { connectOpen = true },
         )
 

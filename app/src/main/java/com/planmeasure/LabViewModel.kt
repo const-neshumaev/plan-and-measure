@@ -58,6 +58,9 @@ class LabViewModel(app: Application) : AndroidViewModel(app) {
     val entries = packetLog.entries
     val gattState = client.state
 
+    /** Decoded measurements from the rangefinder; the measurement screens decide what to save. */
+    val deviceFrames = client.frames
+
     private val _screen = MutableStateFlow(LabScreen.Scan)
     val screen = _screen.asStateFlow()
 

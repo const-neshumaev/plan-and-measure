@@ -11,13 +11,17 @@ import android.content.Context
 import android.os.Build
 import com.planmeasure.logging.LogKind
 import com.planmeasure.logging.PacketLog
+import com.planmeasure.protocol.DistanceFrame
 import com.planmeasure.protocol.DistanceUnit
 import com.planmeasure.protocol.FrameCodec
 import java.util.Locale
 import java.util.UUID
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
@@ -42,6 +46,11 @@ class BleGattClient(
     private val opMutex = Mutex()
     private val _state = MutableStateFlow(GattState())
     val state: StateFlow<GattState> = _state.asStateFlow()
+
+    private val _frames = MutableSharedFlow<DistanceFrame>(extraBufferCapacity = 16)
+
+    /** Decoded measurements from [BleUuids.MEASUREMENT_CHARACTERISTIC], without replay. */
+    val frames: SharedFlow<DistanceFrame> = _frames.asSharedFlow()
 
     private var gatt: BluetoothGatt? = null
     private var connectDeferred: CompletableDeferred<Boolean>? = null
@@ -448,6 +457,9 @@ class BleGattClient(
         value: ByteArray,
     ) {
         val frame = FrameCodec.decode(value)
+        if (frame != null && characteristic.uuid == BleUuids.MEASUREMENT_CHARACTERISTIC) {
+            _frames.tryEmit(frame)
+        }
         val message = if (frame != null) {
             val shown = if (frame.unit == DistanceUnit.FEET) {
                 "=> %.3f %s (raw %s)".format(

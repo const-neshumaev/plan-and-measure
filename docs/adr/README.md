@@ -28,3 +28,5 @@ ADR не нужен для багфиксов, переименований, л�
 | № | Решение | Статус | Дата |
 |---|---|---|---|
 | [0001](0001-record-architecture-decisions.md) | Фиксировать архитектурные решения в ADR | Accepted | 2026-11-15 |
+| [0002](0002-local-json-documents-for-measurement-lists.md) | Хранить списки измерений в локальных JSON-документах | Accepted | 2026-11-15 |
+| [0003](0003-measurements-are-independent-of-ble-session.md) | Измерения не зависят от BLE-сессии | Accepted | 2026-11-15 |

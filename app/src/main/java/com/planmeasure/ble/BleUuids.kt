@@ -18,6 +18,9 @@ object BleUuids {
     /** Custom service advertised by the rangefinder (see docs/protocol-research/protocol.md). */
     val RANGEFINDER_SERVICE: UUID = UUID.fromString("0000cbbb$BASE_UUID_SUFFIX")
 
+    /** Characteristic that carries completed measurements as ASCII frames. */
+    val MEASUREMENT_CHARACTERISTIC: UUID = UUID.fromString("0000cbb1$BASE_UUID_SUFFIX")
+
     private val known: Map<String, String> = buildMap {
         putUuid("00001800$BASE_UUID_SUFFIX", "Generic Access")
         putUuid("00001801$BASE_UUID_SUFFIX", "Generic Attribute")

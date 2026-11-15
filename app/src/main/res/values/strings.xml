@@ -6,6 +6,14 @@
     <string name="action_back">Back</string>
     <string name="action_add">Add</string>
     <string name="action_cancel">Cancel</string>
+    <string name="action_close">Close</string>
+    <string name="action_create">Create</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_more">More</string>
+    <string name="action_rename">Rename</string>
+    <string name="action_save">Save</string>
+    <string name="action_undo">Undo</string>
     <string name="demo_banner">Demo content: functionality is coming soon</string>
 
     <!-- Home -->
@@ -42,7 +50,7 @@
 
     <!-- Sections -->
     <string name="section_measurements">Measurements</string>
-    <string name="section_measurements_details">Live readings and history</string>
+    <string name="section_measurements_details">Saved lists and readings</string>
     <string name="section_projects">Projects</string>
     <string name="section_projects_details">Rooms, plans and measurements</string>
     <string name="section_capture">Capture</string>
@@ -50,12 +58,57 @@
     <string name="section_settings">Settings</string>
     <string name="section_settings_details">Theme and language</string>
 
-    <!-- Measurements (placeholder) -->
-    <string name="measurements_last">Last measurement</string>
-    <string name="measurements_value">%1$s m</string>
-    <string name="measurements_unit_m">m</string>
-    <string name="measurements_recent">Recent</string>
-    <string name="measurements_connect">Connect rangefinder</string>
+    <!-- Measurements -->
+    <string name="measurement_lists_empty_title">No saved lists yet</string>
+    <string name="measurement_lists_empty_text">Create a list to record measurements from the rangefinder or enter them manually.</string>
+    <string name="measurement_list_new">New list</string>
+    <string name="measurement_list_name">List name</string>
+    <string name="measurement_list_name_hint">e.g. Living room</string>
+    <string name="measurement_list_default_name">Measurements %1$s</string>
+    <string name="measurement_list_rename_title">Rename list</string>
+    <string name="measurement_list_delete_title">Delete list?</string>
+    <string name="measurement_list_delete_text">All measurements in “%1$s” will be deleted permanently.</string>
+    <string name="measurement_list_updated">Updated %1$s</string>
+    <string name="measurement_list_meta">%1$s · %2$s</string>
+    <plurals name="measurements_count">
+        <item quantity="one">%1$d measurement</item>
+        <item quantity="other">%1$d measurements</item>
+    </plurals>
+
+    <string name="measurement_empty_title">No measurements yet</string>
+    <string name="measurement_empty_text">Measure with the rangefinder or add a value manually.</string>
+    <string name="measurement_add">Add measurement</string>
+    <string name="measurement_add_manual">Enter manually</string>
+    <string name="measurement_edit">Edit measurement</string>
+    <string name="measurement_value_label">Value</string>
+    <string name="measurement_value_hint">e.g. 1.763</string>
+    <string name="measurement_value_error">Enter a positive number</string>
+    <string name="measurement_unit_label">Unit</string>
+    <string name="measurement_comment_label">Comment</string>
+    <string name="measurement_comment_hint">What is this dimension?</string>
+    <string name="measurement_comment_add">Add a comment</string>
+    <string name="measurement_deleted">Measurement deleted</string>
+    <string name="measurement_error_save">Could not save changes</string>
+    <string name="measurement_error_create">Could not create the list</string>
+    <string name="measurement_error_delete">Could not delete the list</string>
+    <string name="measurement_error_load">Could not open the list</string>
+    <string name="measurement_capture_on">Recording from rangefinder</string>
+    <string name="measurement_capture_on_hint">New readings are added automatically.</string>
+    <string name="measurement_capture_paused">Recording paused</string>
+    <string name="measurement_capture_paused_hint">Readings are ignored until you resume.</string>
+    <string name="measurement_capture_pause">Pause</string>
+    <string name="measurement_capture_resume">Resume</string>
+    <string name="measurement_disconnected">Rangefinder not connected</string>
+    <string name="measurement_disconnected_hint">Enter values manually or connect the rangefinder.</string>
+    <string name="measurement_connect">Connect</string>
+    <string name="measurement_source_rangefinder">From rangefinder</string>
+    <string name="measurement_source_manual">Entered manually</string>
+
+    <string name="unit_meters">m</string>
+    <string name="unit_centimeters">cm</string>
+    <string name="unit_millimeters">mm</string>
+    <string name="unit_feet">ft</string>
+    <string name="unit_inches">in</string>
 
     <!-- Projects (placeholder) -->
     <string name="projects_demo_apartment">Apartment · living room</string>

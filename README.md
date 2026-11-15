@@ -4,6 +4,8 @@ Android-приложение для лазерного дальномера **In
 
 Публичного описания протокола Instrumax не существует: он восстановлен экспериментально. Методика исследования, подтверждённые факты и журнал экспериментов собраны в `docs/protocol-research/`.
 
+Измерения можно вводить вручную: дальномер не обязателен и лишь ускоряет ввод. Списки измерений с комментариями сохраняются локально и доступны для открытия при следующем запуске.
+
 ## Требования
 
 - Android Studio (актуальная версия) — она принесёт JDK 17+ и Android SDK.
@@ -39,7 +41,7 @@ app/src/main/java/com/planmeasure/
   LabViewModel.kt           состояние BLE-сессии и лабораторные сценарии
   ble/
     BleScanner.kt           сканирование
-    BleGattClient.kt        GATT-клиент с очередью операций
+    BleGattClient.kt        GATT-клиент с очередью операций и потоком кадров
     BleModels.kt            модели сканирования и GATT
     BleUuids.kt             словарь UUID
     BlePermissions.kt       разрешения Android 12+
@@ -52,6 +54,14 @@ app/src/main/java/com/planmeasure/
     Hex.kt                  hex-кодирование и разбор
   protocol/
     FrameCodec.kt           разбор подтверждённых кадров
+  measurements/
+    Measurement.kt          измерение и источник (ручной/дальномер)
+    MeasurementList.kt      документ списка и его сводка
+    MeasurementListJson.kt  JSON-кодек документа
+    MeasurementListRepository.kt      контракт хранения
+    JsonMeasurementListRepository.kt  файловое хранилище с атомарной записью
+    MeasurementInput.kt     валидация ручного ввода
+    MeasurementsViewModel.kt          состояние списков и записи
   settings/
     AppSettings.kt          модель настроек (тема, язык)
     SettingsStorage.kt      сохранение в SharedPreferences
@@ -61,6 +71,13 @@ app/src/main/java/com/planmeasure/
     AppRoot.kt              навигация: меню, разделы MVP, подключение, BLE Lab
     home/HomeScreen.kt      главное меню и статус подключения
     connect/ConnectScreen.kt  поиск и подключение дальномера
+    measurements/
+      MeasurementsFlow.kt  списки и редактор списка
+      MeasurementListsScreen.kt  сохранённые списки
+      MeasurementListScreen.kt   редактор списка и статус записи
+      MeasurementEditorSheet.kt  ручной ввод и правка
+      ListNameDialog.kt    создание и переименование списка
+      MeasurementFormat.kt единицы и форматирование времени
     sections/               экраны-заглушки разделов MVP
     lab/
       LabFlow.kt            общий app bar и back-навигация лаборатории
@@ -73,6 +90,14 @@ app/src/main/res/
   values-ru/strings.xml     русские строки
 ```
 
+## Данные
+
+Списки измерений хранятся только на устройстве, в `filesDir/measurements/<uuid>.json`. Сервера и аккаунтов нет. Каждое изменение сразу записывается атомарно, предыдущая версия документа остаётся в `.bak`. Подробности и причины — в `docs/adr/0002-local-json-documents-for-measurement-lists.md`.
+
+`allowBackup` выключен: при переустановке данные пропадут. Экспорт и резервное копирование появятся отдельной задачей.
+
+Дальномер не обязателен: значения вводятся вручную в любом списке. Кадры с прибора записываются только пока открыт редактор списка, приложение на переднем плане и запись не поставлена на паузу — см. `docs/adr/0003-measurements-are-independent-of-ble-session.md`.
+
 ## Документация
 
 - `docs/protocol-research/research-plan.md` — методика снятия протокола, эксперименты E0–E10.
@@ -84,9 +109,9 @@ app/src/main/res/
 ## Дальнейшие шаги
 
 1. Закрыть оставшиеся вопросы протокола (дюймы/миллиметры, кадры ошибок, поведение на длинных сессиях).
-2. Раздел «Измерения»: реальное подключение, приём значений и история.
-3. Раздел «Проекты»: помещения, привязка замеров к фото.
-4. Редактор схемы помещения, экспорт PDF/SVG/DXF.
+2. Раздел «Проекты»: помещения, привязка списков измерений к проекту.
+3. Привязка измерений к фотографиям.
+4. Экспорт и резервное копирование, редактор схемы помещения, PDF/SVG/DXF.
 
 ## Лицензия
 
