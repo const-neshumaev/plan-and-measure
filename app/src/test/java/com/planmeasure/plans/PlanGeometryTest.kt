@@ -40,7 +40,43 @@ class PlanGeometryTest {
             raw = PlanPoint(4.2, 4.1),
             magnetRadius = 0.5,
         )
-        assertEquals(PlanPoint(6.0, 6.0), snap?.point)
+        // A 45° step is √2 long, so the end must stay under the finger instead of doubling it.
+        assertEquals(PlanPoint(4.0, 4.0), snap?.point)
+    }
+
+    @Test
+    fun clampsDiagonalSegmentToWorldEdge() {
+        val snap = PlanGeometry.snapSegment(
+            nodes = emptyList(),
+            startPoint = PlanPoint(18.0, 2.0),
+            raw = PlanPoint(30.0, 14.0),
+            magnetRadius = 0.5,
+        )
+        assertEquals(PlanPoint(PlanWorld.WIDTH, 4.0), snap?.point)
+    }
+
+    @Test
+    fun magnetAlignsSegmentAimedNearAxis() {
+        // The finger is about 10° off, so the magnet straightens the edge instead of sloping it.
+        val snap = PlanGeometry.snapSegment(
+            nodes = emptyList(),
+            startPoint = PlanPoint(5.0, 5.0),
+            raw = PlanPoint(11.4, 6.1),
+            magnetRadius = 0.5,
+        )
+        assertEquals(PlanPoint(11.0, 5.0), snap?.point)
+    }
+
+    @Test
+    fun keepsAngleDrawnFarFromMagnet() {
+        // About 29° from the axis is a deliberate slant, so only the end is snapped to the grid.
+        val snap = PlanGeometry.snapSegment(
+            nodes = emptyList(),
+            startPoint = PlanPoint(2.0, 2.0),
+            raw = PlanPoint(8.2, 5.4),
+            magnetRadius = 0.5,
+        )
+        assertEquals(PlanPoint(8.0, 5.0), snap?.point)
     }
 
     @Test
@@ -112,6 +148,71 @@ class PlanGeometryTest {
             PlanPoint(2.0, 4.0),
             PlanGeometry.snapNodeMove(listOf(first, second), listOf(edge), first, PlanPoint(2.2, 3.8)),
         )
+    }
+
+    @Test
+    fun offsetsEdgeAsAWhole() {
+        val nodes = listOf(PlanNode("a", 2.0, 2.0), PlanNode("b", 8.0, 2.0))
+        val edge = PlanEdge("e", "a", "b")
+
+        assertEquals(
+            PlanPoint(0.0, 3.0),
+            PlanGeometry.snapEdgeMove(
+                nodes = nodes,
+                edges = listOf(edge),
+                edge = edge,
+                from = PlanPoint(5.0, 2.0),
+                to = PlanPoint(5.4, 5.2),
+            ),
+        )
+    }
+
+    @Test
+    fun clampsEdgeOffsetToWorld() {
+        val nodes = listOf(PlanNode("a", 2.0, 2.0), PlanNode("b", 8.0, 2.0))
+        val edge = PlanEdge("e", "a", "b")
+
+        assertEquals(
+            PlanPoint(-2.0, 0.0),
+            PlanGeometry.snapEdgeMove(
+                nodes = nodes,
+                edges = listOf(edge),
+                edge = edge,
+                from = PlanPoint(5.0, 2.0),
+                to = PlanPoint(-5.0, 2.0),
+            ),
+        )
+    }
+
+    @Test
+    fun refusesEdgeOffsetThatCollapsesNeighbour() {
+        val nodes = listOf(
+            PlanNode("a", 2.0, 2.0),
+            PlanNode("b", 8.0, 2.0),
+            PlanNode("c", 8.0, 6.0),
+        )
+        val moved = PlanEdge("first", "a", "b")
+        val neighbour = PlanEdge("second", "b", "c")
+
+        assertNull(
+            PlanGeometry.snapEdgeMove(
+                nodes = nodes,
+                edges = listOf(moved, neighbour),
+                edge = moved,
+                from = PlanPoint(5.0, 2.0),
+                to = PlanPoint(5.0, 6.0),
+            ),
+        )
+    }
+
+    @Test
+    fun projectsFingerOntoEdge() {
+        val nodes = listOf(PlanNode("a", 2.0, 2.0), PlanNode("b", 8.0, 2.0))
+        val edge = PlanEdge("e", "a", "b")
+
+        assertEquals(PlanPoint(5.0, 2.0), PlanGeometry.projectOnEdge(nodes, edge, PlanPoint(5.0, 3.0)))
+        assertEquals(PlanPoint(2.0, 2.0), PlanGeometry.projectOnEdge(nodes, edge, PlanPoint(0.0, 2.0)))
+        assertNull(PlanGeometry.projectOnEdge(emptyList(), edge, PlanPoint(5.0, 3.0)))
     }
 
     @Test

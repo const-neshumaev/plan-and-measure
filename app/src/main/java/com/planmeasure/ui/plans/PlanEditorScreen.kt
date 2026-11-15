@@ -194,6 +194,7 @@ fun PlanEditorScreen(
                 tool = tool,
                 onSegment = viewModel::addSegment,
                 onMoveNode = viewModel::moveNode,
+                onMoveEdge = viewModel::moveEdge,
                 onSelectEdge = { selectedEdgeId = it },
                 selectedEdgeId = selectedEdge?.id,
                 showGrid = showGrid,

@@ -30,4 +30,5 @@ ADR не нужен для багфиксов, переименований, л�
 | [0001](0001-record-architecture-decisions.md) | Фиксировать архитектурные решения в ADR | Accepted | 2026-11-15 |
 | [0002](0002-local-json-documents-for-measurement-lists.md) | Хранить списки измерений в локальных JSON-документах | Accepted | 2026-11-15 |
 | [0003](0003-measurements-are-independent-of-ble-session.md) | Измерения не зависят от BLE-сессии | Accepted | 2026-11-15 |
-| [0004](0004-store-plans-as-local-json-documents.md) | Хранить планы в локальных JSON-документах с координатами без привязки к экрану | Accepted | 2026-11-15 |
+| [0004](0004-store-plans-as-local-json-documents.md) | Хранить планы в локальных JSON-документах с координатами без привязки к экрану | Accepted — правило привязки уточнено 0005 | 2026-11-15 |
+| [0005](0005-free-angle-drawing-with-45-degree-magnet.md) | Рисовать под произвольным углом, 45° — магнит | Accepted | 2026-11-15 |
