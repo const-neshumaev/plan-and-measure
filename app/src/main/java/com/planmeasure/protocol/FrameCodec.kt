@@ -1,5 +1,7 @@
 package com.planmeasure.protocol
 
+import java.math.BigDecimal
+
 enum class DistanceUnit {
     METERS,
     FEET,
@@ -36,6 +38,22 @@ data class DistanceFrame(
         get() = when (unit) {
             DistanceUnit.FEET -> value / 10.0
             else -> value
+        }
+
+    /**
+     * Decimal text with the feet shift already corrected.
+     *
+     * The device sends feet with the point one digit to the right (`D72.60ft` = `7.26 ft`).
+     * Storage keeps this normalized text so that the saved value matches the display.
+     */
+    val normalizedText: String
+        get() = when (unit) {
+            DistanceUnit.FEET -> BigDecimal(valueText)
+                .movePointLeft(1)
+                .stripTrailingZeros()
+                .toPlainString()
+
+            else -> valueText
         }
 
     /** Distance in millimeters, or `null` when the unit is unknown. */

@@ -6,6 +6,14 @@
     <string name="action_back">Назад</string>
     <string name="action_add">Добавить</string>
     <string name="action_cancel">Отмена</string>
+    <string name="action_close">Закрыть</string>
+    <string name="action_create">Создать</string>
+    <string name="action_delete">Удалить</string>
+    <string name="action_edit">Изменить</string>
+    <string name="action_more">Ещё</string>
+    <string name="action_rename">Переименовать</string>
+    <string name="action_save">Сохранить</string>
+    <string name="action_undo">Отменить</string>
     <string name="demo_banner">Демо-контент: функционал появится позже</string>
 
     <!-- Home -->
@@ -44,7 +52,7 @@
 
     <!-- Sections -->
     <string name="section_measurements">Измерения</string>
-    <string name="section_measurements_details">Текущие показания и история</string>
+    <string name="section_measurements_details">Списки и измерения</string>
     <string name="section_projects">Проекты</string>
     <string name="section_projects_details">Помещения, планы и замеры</string>
     <string name="section_capture">Съёмка</string>
@@ -52,12 +60,59 @@
     <string name="section_settings">Настройки</string>
     <string name="section_settings_details">Тема и язык</string>
 
-    <!-- Measurements (placeholder) -->
-    <string name="measurements_last">Последний замер</string>
-    <string name="measurements_value">%1$s м</string>
-    <string name="measurements_unit_m">м</string>
-    <string name="measurements_recent">Недавние</string>
-    <string name="measurements_connect">Подключить дальномер</string>
+    <!-- Measurements -->
+    <string name="measurement_lists_empty_title">Сохранённых списков пока нет</string>
+    <string name="measurement_lists_empty_text">Создайте список, чтобы записывать измерения с дальномера или вводить их вручную.</string>
+    <string name="measurement_list_new">Новый список</string>
+    <string name="measurement_list_name">Название списка</string>
+    <string name="measurement_list_name_hint">Например, гостиная</string>
+    <string name="measurement_list_default_name">Измерения %1$s</string>
+    <string name="measurement_list_rename_title">Переименовать список</string>
+    <string name="measurement_list_delete_title">Удалить список?</string>
+    <string name="measurement_list_delete_text">Все измерения в «%1$s» будут удалены безвозвратно.</string>
+    <string name="measurement_list_updated">Изменён %1$s</string>
+    <string name="measurement_list_meta">%1$s · %2$s</string>
+    <plurals name="measurements_count">
+        <item quantity="one">%1$d измерение</item>
+        <item quantity="few">%1$d измерения</item>
+        <item quantity="many">%1$d измерений</item>
+        <item quantity="other">%1$d измерения</item>
+    </plurals>
+
+    <string name="measurement_empty_title">Измерений пока нет</string>
+    <string name="measurement_empty_text">Измерьте дальномером или добавьте значение вручную.</string>
+    <string name="measurement_add">Добавить измерение</string>
+    <string name="measurement_add_manual">Ввести вручную</string>
+    <string name="measurement_edit">Изменить измерение</string>
+    <string name="measurement_value_label">Значение</string>
+    <string name="measurement_value_hint">Например, 1.763</string>
+    <string name="measurement_value_error">Введите положительное число</string>
+    <string name="measurement_unit_label">Единица</string>
+    <string name="measurement_comment_label">Комментарий</string>
+    <string name="measurement_comment_hint">Что это за размер?</string>
+    <string name="measurement_comment_add">Добавить комментарий</string>
+    <string name="measurement_deleted">Измерение удалено</string>
+    <string name="measurement_error_save">Не удалось сохранить изменения</string>
+    <string name="measurement_error_create">Не удалось создать список</string>
+    <string name="measurement_error_delete">Не удалось удалить список</string>
+    <string name="measurement_error_load">Не удалось открыть список</string>
+    <string name="measurement_capture_on">Запись с дальномера</string>
+    <string name="measurement_capture_on_hint">Новые измерения добавляются автоматически.</string>
+    <string name="measurement_capture_paused">Запись приостановлена</string>
+    <string name="measurement_capture_paused_hint">Измерения не записываются, пока запись не возобновится.</string>
+    <string name="measurement_capture_pause">Пауза</string>
+    <string name="measurement_capture_resume">Продолжить</string>
+    <string name="measurement_disconnected">Дальномер не подключён</string>
+    <string name="measurement_disconnected_hint">Введите значения вручную или подключите дальномер.</string>
+    <string name="measurement_connect">Подключить</string>
+    <string name="measurement_source_rangefinder">С дальномера</string>
+    <string name="measurement_source_manual">Введено вручную</string>
+
+    <string name="unit_meters">м</string>
+    <string name="unit_centimeters">см</string>
+    <string name="unit_millimeters">мм</string>
+    <string name="unit_feet">ft</string>
+    <string name="unit_inches">in</string>
 
     <!-- Projects (placeholder) -->
     <string name="projects_demo_apartment">Квартира · гостиная</string>

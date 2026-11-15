@@ -37,10 +37,24 @@ class FrameCodecTest {
         // Captured during the 2026-11-14 session: display 6.76 ft, frame D67.61ft.
         val first = FrameCodec.decode(ascii("D67.61ft        "))!!
         assertEquals(6.761, first.normalizedValue, 1e-9)
+        assertEquals("6.761", first.normalizedText)
 
         // Display 11.89 ft, frame D118.89ft.
         val second = FrameCodec.decode(ascii("D118.89ft       "))!!
         assertEquals(11.889, second.normalizedValue, 1e-9)
+        assertEquals("11.889", second.normalizedText)
+    }
+
+    @Test
+    fun normalizedTextTrimsFeetTrailingZero() {
+        val frame = FrameCodec.decode(ascii("D72.60ft        "))!!
+        assertEquals("7.26", frame.normalizedText)
+    }
+
+    @Test
+    fun normalizedTextLeavesMetersUntouched() {
+        val frame = FrameCodec.decode(ascii("D1.760m         "))!!
+        assertEquals("1.760", frame.normalizedText)
     }
 
     @Test
