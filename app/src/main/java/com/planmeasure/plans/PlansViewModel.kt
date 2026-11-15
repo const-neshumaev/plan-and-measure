@@ -155,6 +155,17 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
         commit(updated.copy(updatedAt = System.currentTimeMillis()))
     }
 
+    /**
+     * Applies one edge drag; [from] is the grabbed point of the edge and [to] a raw world point.
+     * Snapping and validation are delegated to [PlanEditing].
+     */
+    fun moveEdge(edgeId: String, from: PlanPoint, to: PlanPoint) {
+        val current = _openPlan.value ?: return
+        val updated = PlanEditing.moveEdge(current, edgeId, from, to)
+        if (updated === current) return
+        commit(updated.copy(updatedAt = System.currentTimeMillis()))
+    }
+
     fun removeEdge(edgeId: String) {
         val current = _openPlan.value ?: return
         val updated = PlanEditing.removeEdge(current, edgeId, ::newId)

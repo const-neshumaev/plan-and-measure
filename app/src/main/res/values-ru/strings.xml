@@ -134,11 +134,11 @@
     </plurals>
     <string name="plan_lists_empty_title">Сохранённых планов пока нет</string>
     <string name="plan_lists_empty_text">Создайте план и нарисуйте контур помещения пальцем.</string>
-    <string name="plan_draw_hint">Проведите пальцем, чтобы нарисовать стену.\nЛиния выравнивается по сетке, углы кратны 45°.</string>
+    <string name="plan_draw_hint">Проведите пальцем, чтобы нарисовать стену.\nЛиния ложится по сетке, а вблизи углов, кратных 45°, выравнивается точно по ним.</string>
     <string name="plan_grid">Сетка</string>
     <string name="plan_tool_draw">Рисование</string>
     <string name="plan_tool_edit">Правка</string>
-    <string name="plan_edit_hint">Перетащите узел, чтобы изменить форму. Коснитесь линии, чтобы выделить её.</string>
+    <string name="plan_edit_hint">Перетащите узел, чтобы изменить форму. Коснитесь линии, чтобы выделить её, удерживайте — чтобы сдвинуть.</string>
     <string name="plan_delete_edge">Удалить линию</string>
     <string name="plan_clear">Очистить чертёж</string>
     <string name="plan_clear_title">Очистить чертёж?</string>

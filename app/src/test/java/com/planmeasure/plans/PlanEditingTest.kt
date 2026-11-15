@@ -140,6 +140,80 @@ class PlanEditingTest {
     }
 
     @Test
+    fun movesEdgeKeepingDirectionAndLength() {
+        val plan = square()
+        val bottom = plan.contours.single().edges.first()
+
+        val moved = PlanEditing.moveEdge(plan, bottom.id, PlanPoint(5.0, 2.0), PlanPoint(5.4, 4.2))
+
+        assertEquals(PlanPoint(2.0, 4.0), positionOf(moved, bottom.startNodeId))
+        assertEquals(PlanPoint(8.0, 4.0), positionOf(moved, bottom.endNodeId))
+        assertEquals(1, moved.contours.size)
+        assertEquals(4, moved.nodes.size)
+    }
+
+    @Test
+    fun moveEdgeLeavesOtherNodesInPlace() {
+        val plan = square()
+        val bottom = plan.contours.single().edges.first()
+        val moved = PlanEditing.moveEdge(plan, bottom.id, PlanPoint(5.0, 2.0), PlanPoint(5.0, 3.0))
+
+        val shifted = setOf(bottom.startNodeId, bottom.endNodeId)
+        plan.nodes.filterNot { it.id in shifted }.forEach { node ->
+            assertEquals(node, moved.nodes.first { it.id == node.id })
+        }
+    }
+
+    @Test
+    fun moveEdgeSnapsOffsetToWholeUnits() {
+        val plan = square()
+        val bottom = plan.contours.single().edges.first()
+
+        // A small diagonal offset rounds to one cell to the right, and the neighbours become
+        // slanted because only one of their two nodes travelled with the edge.
+        val moved = PlanEditing.moveEdge(plan, bottom.id, PlanPoint(5.0, 2.0), PlanPoint(5.6, 2.4))
+
+        assertEquals(PlanPoint(3.0, 2.0), positionOf(moved, bottom.startNodeId))
+        assertEquals(PlanPoint(9.0, 2.0), positionOf(moved, bottom.endNodeId))
+    }
+
+    @Test
+    fun moveEdgeClampsToWorld() {
+        val plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
+        val edge = plan.edges.single()
+
+        val moved = PlanEditing.moveEdge(plan, edge.id, PlanPoint(5.0, 2.0), PlanPoint(99.0, 2.0))
+
+        assertEquals(PlanPoint(14.0, 2.0), positionOf(moved, edge.startNodeId))
+        assertEquals(PlanPoint(PlanWorld.WIDTH, 2.0), positionOf(moved, edge.endNodeId))
+    }
+
+    @Test
+    fun moveEdgeRefusesToCollapseNeighbour() {
+        var plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
+        plan = segment(plan, 8.0, 2.0, 8.0, 6.0)
+        val first = plan.contours.single().edges.first()
+
+        // Up by four cells puts the shared node on top of the far end of the second edge.
+        assertSame(plan, PlanEditing.moveEdge(plan, first.id, PlanPoint(5.0, 2.0), PlanPoint(5.0, 6.0)))
+    }
+
+    @Test
+    fun moveEdgeIgnoresZeroOffset() {
+        val plan = square()
+        val bottom = plan.contours.single().edges.first()
+
+        assertSame(plan, PlanEditing.moveEdge(plan, bottom.id, PlanPoint(5.0, 2.0), PlanPoint(5.2, 2.1)))
+    }
+
+    @Test
+    fun moveEdgeIgnoresUnknownEdge() {
+        val plan = square()
+
+        assertSame(plan, PlanEditing.moveEdge(plan, "missing", PlanPoint(5.0, 2.0), PlanPoint(5.0, 4.0)))
+    }
+
+    @Test
     fun removeEdgeSplitsContourIntoChains() {
         var plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
         plan = segment(plan, 8.0, 2.0, 8.0, 9.0)

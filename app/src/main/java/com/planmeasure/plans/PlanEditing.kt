@@ -5,7 +5,8 @@ package com.planmeasure.plans
  *
  * One drawing gesture adds one edge. The edge continues the contour that ends at its start node,
  * otherwise it starts a new contour. Ending an edge on the first node of a contour closes it.
- * Editing moves a node, which drags every edge that touches it, or removes one edge.
+ * Editing moves a node, which drags every edge that touches it, slides one edge as a whole, or
+ * removes one edge.
  */
 object PlanEditing {
 
@@ -66,6 +67,38 @@ object PlanEditing {
         return document.copy(
             nodes = document.nodes.map { current ->
                 if (current.id == nodeId) current.copy(x = target.x, y = target.y) else current
+            },
+        )
+    }
+
+    /**
+     * Slides [edgeId] to the point the finger reached; see [PlanGeometry.snapEdgeMove].
+     *
+     * Both nodes of the edge are translated by one offset, so the edge keeps its direction and
+     * length, and the edges that share those nodes follow. A plan that slides a diagonal wall along
+     * itself therefore gets slanted neighbours; that is visible during the drag and undoable.
+     *
+     * [from] is the grabbed point of the edge and [to] the current finger position, both in world
+     * units. Returns the same instance when the edge is unknown or the offset is not allowed.
+     */
+    fun moveEdge(
+        document: PlanDocument,
+        edgeId: String,
+        from: PlanPoint,
+        to: PlanPoint,
+    ): PlanDocument {
+        val edge = document.edges.firstOrNull { it.id == edgeId } ?: return document
+        val offset = PlanGeometry.snapEdgeMove(document.nodes, document.edges, edge, from, to)
+            ?: return document
+        if (offset.x == 0.0 && offset.y == 0.0) return document
+        val moved = setOf(edge.startNodeId, edge.endNodeId)
+        return document.copy(
+            nodes = document.nodes.map { node ->
+                if (node.id in moved) {
+                    node.copy(x = node.x + offset.x, y = node.y + offset.y)
+                } else {
+                    node
+                }
             },
         )
     }
