@@ -1,5 +1,6 @@
-package com.planmeasure.ui.measurements
+package com.planmeasure.ui.components
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
@@ -14,12 +15,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.planmeasure.R
 
-private const val MAX_LIST_NAME_LENGTH = 60
+private const val MAX_NAME_LENGTH = 60
 
-/** Shared dialog for creating a list and renaming an existing one. */
+/** Shared dialog for creating a named document and renaming an existing one. */
 @Composable
 fun ListNameDialog(
     title: String,
+    @StringRes labelRes: Int,
+    @StringRes hintRes: Int,
     initialName: String,
     confirmLabel: String,
     onConfirm: (String) -> Unit,
@@ -34,10 +37,10 @@ fun ListNameDialog(
         text = {
             OutlinedTextField(
                 value = name,
-                onValueChange = { name = it.take(MAX_LIST_NAME_LENGTH) },
+                onValueChange = { name = it.take(MAX_NAME_LENGTH) },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.measurement_list_name)) },
-                placeholder = { Text(stringResource(R.string.measurement_list_name_hint)) },
+                label = { Text(stringResource(labelRes)) },
+                placeholder = { Text(stringResource(hintRes)) },
                 singleLine = true,
             )
         },

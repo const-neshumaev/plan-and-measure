@@ -4,7 +4,6 @@ import androidx.annotation.StringRes
 import com.planmeasure.R
 import com.planmeasure.measurements.LengthUnit
 import java.text.DateFormat
-import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
@@ -28,14 +27,6 @@ fun formatMeasurementTime(
 } else {
     dateTimeFormatter(locale).format(Date(epochMs))
 }
-
-/** Timestamp of a saved list on the overview screen. */
-fun formatListUpdated(epochMs: Long, locale: Locale = Locale.getDefault()): String =
-    dateTimeFormatter(locale).format(Date(epochMs))
-
-/** Default name for a new list, so several unsaved-looking lists stay distinguishable. */
-fun defaultListTimestamp(locale: Locale): String =
-    SimpleDateFormat("d MMM yyyy HH:mm", locale).format(Date())
 
 private fun dateTimeFormatter(locale: Locale): DateFormat =
     DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT, locale)

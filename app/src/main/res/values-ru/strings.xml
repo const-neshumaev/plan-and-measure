@@ -53,6 +53,8 @@
     <!-- Sections -->
     <string name="section_measurements">Измерения</string>
     <string name="section_measurements_details">Списки и измерения</string>
+    <string name="section_plans">Планы</string>
+    <string name="section_plans_details">Схемы помещений от руки</string>
     <string name="section_projects">Проекты</string>
     <string name="section_projects_details">Помещения, планы и замеры</string>
     <string name="section_capture">Съёмка</string>
@@ -113,6 +115,34 @@
     <string name="unit_millimeters">мм</string>
     <string name="unit_feet">ft</string>
     <string name="unit_inches">in</string>
+
+    <!-- Plans -->
+    <string name="plan_new">Новый план</string>
+    <string name="plan_name">Название плана</string>
+    <string name="plan_name_hint">Например, гостиная</string>
+    <string name="plan_default_name">План %1$s</string>
+    <string name="plan_rename_title">Переименовать план</string>
+    <string name="plan_delete_title">Удалить план?</string>
+    <string name="plan_delete_text">Чертёж «%1$s» будет удалён безвозвратно.</string>
+    <string name="plan_updated">Изменён %1$s</string>
+    <string name="plan_meta">%1$s · %2$s</string>
+    <plurals name="plan_edges_count">
+        <item quantity="one">%1$d грань</item>
+        <item quantity="few">%1$d грани</item>
+        <item quantity="many">%1$d граней</item>
+        <item quantity="other">%1$d грани</item>
+    </plurals>
+    <string name="plan_lists_empty_title">Сохранённых планов пока нет</string>
+    <string name="plan_lists_empty_text">Создайте план и нарисуйте контур помещения пальцем.</string>
+    <string name="plan_draw_hint">Проведите пальцем, чтобы нарисовать стену.\nЛиния выравнивается по сетке, углы кратны 45°.</string>
+    <string name="plan_grid">Сетка</string>
+    <string name="plan_clear">Очистить чертёж</string>
+    <string name="plan_clear_title">Очистить чертёж?</string>
+    <string name="plan_clear_text">Все линии плана «%1$s» будут удалены.</string>
+    <string name="plan_error_save">Не удалось сохранить план</string>
+    <string name="plan_error_create">Не удалось создать план</string>
+    <string name="plan_error_delete">Не удалось удалить план</string>
+    <string name="plan_error_load">Не удалось открыть план</string>
 
     <!-- Projects (placeholder) -->
     <string name="projects_demo_apartment">Квартира · гостиная</string>
