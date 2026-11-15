@@ -86,6 +86,71 @@ class PlanGeometryTest {
     }
 
     @Test
+    fun snapsMovedNodeToGridAndWorld() {
+        val node = PlanNode("n", 2.0, 2.0)
+
+        assertEquals(
+            PlanPoint(5.0, 4.0),
+            PlanGeometry.snapNodeMove(listOf(node), emptyList(), node, PlanPoint(4.7, 3.6)),
+        )
+        assertEquals(
+            PlanPoint(0.0, PlanWorld.HEIGHT),
+            PlanGeometry.snapNodeMove(listOf(node), emptyList(), node, PlanPoint(-3.0, 99.0)),
+        )
+    }
+
+    @Test
+    fun refusesNodeMoveThatCollapsesEdge() {
+        val first = PlanNode("a", 2.0, 2.0)
+        val second = PlanNode("b", 3.0, 2.0)
+        val edge = PlanEdge("e", "a", "b")
+
+        assertNull(
+            PlanGeometry.snapNodeMove(listOf(first, second), listOf(edge), first, PlanPoint(2.6, 2.0)),
+        )
+        assertEquals(
+            PlanPoint(2.0, 4.0),
+            PlanGeometry.snapNodeMove(listOf(first, second), listOf(edge), first, PlanPoint(2.2, 3.8)),
+        )
+    }
+
+    @Test
+    fun findsEdgeUnderFinger() {
+        val nodes = listOf(PlanNode("a", 2.0, 2.0), PlanNode("b", 8.0, 2.0))
+        val contours = listOf(PlanContour("c", listOf(PlanEdge("e", "a", "b"))))
+
+        assertEquals("e", PlanGeometry.nearestEdge(nodes, contours, PlanPoint(5.0, 2.3), 0.5)?.id)
+        assertNull(PlanGeometry.nearestEdge(nodes, contours, PlanPoint(5.0, 3.0), 0.5))
+    }
+
+    @Test
+    fun measuresTapBeyondEdgeEndFromItsNode() {
+        val nodes = listOf(PlanNode("a", 2.0, 2.0), PlanNode("b", 8.0, 2.0))
+        val contours = listOf(PlanContour("c", listOf(PlanEdge("e", "a", "b"))))
+
+        assertEquals("e", PlanGeometry.nearestEdge(nodes, contours, PlanPoint(9.0, 2.0), 1.5)?.id)
+        assertNull(PlanGeometry.nearestEdge(nodes, contours, PlanPoint(10.0, 2.0), 1.5))
+    }
+
+    @Test
+    fun picksNearestOfTwoEdges() {
+        val nodes = listOf(
+            PlanNode("a", 2.0, 2.0),
+            PlanNode("b", 8.0, 2.0),
+            PlanNode("c", 8.0, 8.0),
+        )
+        val contour = PlanContour(
+            "c",
+            listOf(PlanEdge("first", "a", "b"), PlanEdge("second", "b", "c")),
+        )
+
+        assertEquals(
+            "second",
+            PlanGeometry.nearestEdge(nodes, listOf(contour), PlanPoint(7.7, 5.0), 1.0)?.id,
+        )
+    }
+
+    @Test
     fun picksNearestNodeWithinRadius() {
         val nodes = listOf(PlanNode("a", 1.0, 1.0), PlanNode("b", 2.0, 1.0))
         assertEquals("b", PlanGeometry.nearestNode(nodes, PlanPoint(1.8, 1.0), 1.0)?.id)

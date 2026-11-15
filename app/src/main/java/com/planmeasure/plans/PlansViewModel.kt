@@ -21,6 +21,9 @@ import kotlinx.coroutines.sync.withLock
  * Gestures arrive as raw points with the magnet radius used by the canvas; snapping and editing
  * are delegated to [PlanEditing]. Every change is written immediately, but only once per gesture,
  * not on every pointer move.
+ *
+ * Undo restores snapshots of the open document. The history is kept in memory only: it starts
+ * empty when a plan is opened, so the undo button means "undo the last change of this session".
  */
 class PlansViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -28,10 +31,15 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
 
     private val persistence = Mutex()
 
+    private val undoHistory = ArrayDeque<PlanDocument>()
+
     val plans = repository.plans
 
     private val _openPlan = MutableStateFlow<PlanDocument?>(null)
     val openPlan = _openPlan.asStateFlow()
+
+    private val _canUndo = MutableStateFlow(false)
+    val canUndo = _canUndo.asStateFlow()
 
     private val _loading = MutableStateFlow(true)
     val loading = _loading.asStateFlow()
@@ -54,6 +62,7 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
                 if (document == null) {
                     report(R.string.plan_error_load)
                 } else {
+                    resetUndo()
                     _openPlan.value = document
                 }
             }
@@ -61,6 +70,7 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun close() {
+        resetUndo()
         _openPlan.value = null
     }
 
@@ -69,7 +79,10 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             persistence.withLock {
                 runCatching { repository.create(name) }
-                    .onSuccess { _openPlan.value = it }
+                    .onSuccess {
+                        resetUndo()
+                        _openPlan.value = it
+                    }
                     .onFailure { report(R.string.plan_error_create) }
             }
         }
@@ -79,7 +92,10 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
         val current = _openPlan.value ?: return
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
-        commit(current.copy(name = trimmed, updatedAt = System.currentTimeMillis()))
+        commit(
+            current.copy(name = trimmed, updatedAt = System.currentTimeMillis()),
+            undoable = false,
+        )
     }
 
     fun renamePlan(id: String, name: String) {
@@ -122,7 +138,26 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
 
     fun undo() {
         val current = _openPlan.value ?: return
-        val updated = PlanEditing.undoLastSegment(current)
+        val previous = undoHistory.removeLastOrNull() ?: return
+        _canUndo.value = undoHistory.isNotEmpty()
+        // Renaming is not undoable, so only the geometry is rolled back, not the current name.
+        commit(
+            previous.copy(name = current.name, updatedAt = System.currentTimeMillis()),
+            undoable = false,
+        )
+    }
+
+    /** Applies one node drag; [to] is a raw world point and is snapped by [PlanEditing]. */
+    fun moveNode(nodeId: String, to: PlanPoint) {
+        val current = _openPlan.value ?: return
+        val updated = PlanEditing.moveNode(current, nodeId, to)
+        if (updated === current) return
+        commit(updated.copy(updatedAt = System.currentTimeMillis()))
+    }
+
+    fun removeEdge(edgeId: String) {
+        val current = _openPlan.value ?: return
+        val updated = PlanEditing.removeEdge(current, edgeId, ::newId)
         if (updated === current) return
         commit(updated.copy(updatedAt = System.currentTimeMillis()))
     }
@@ -138,7 +173,9 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun newId(): String = UUID.randomUUID().toString()
 
-    private fun commit(plan: PlanDocument) {
+    private fun commit(plan: PlanDocument, undoable: Boolean = true) {
+        val previous = _openPlan.value
+        if (undoable && previous != null && previous != plan) rememberUndo(previous)
         _openPlan.value = plan
         viewModelScope.launch {
             persistence.withLock {
@@ -148,11 +185,23 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    private fun rememberUndo(document: PlanDocument) {
+        undoHistory.addLast(document)
+        while (undoHistory.size > UNDO_LIMIT) undoHistory.removeFirst()
+        _canUndo.value = true
+    }
+
+    private fun resetUndo() {
+        undoHistory.clear()
+        _canUndo.value = false
+    }
+
     private fun report(@StringRes id: Int) {
         _messages.tryEmit(getApplication<Application>().getString(id))
     }
 
     private companion object {
         const val DATA_DIRECTORY = "plans"
+        const val UNDO_LIMIT = 50
     }
 }

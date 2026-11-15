@@ -1,7 +1,9 @@
 package com.planmeasure.ui.plans
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
@@ -13,6 +15,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -20,6 +25,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,7 +43,7 @@ import com.planmeasure.plans.PlanDocument
 import com.planmeasure.plans.PlansViewModel
 import com.planmeasure.ui.components.ListNameDialog
 
-/** Editor of one plan: the drawing surface, undo, grid toggle and document actions. */
+/** Editor of one plan: the drawing surface, tool switch, undo, grid toggle and document actions. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlanEditorScreen(
@@ -46,12 +52,18 @@ fun PlanEditorScreen(
     onBack: () -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    val canUndo by viewModel.canUndo.collectAsState()
 
     var showGrid by rememberSaveable { mutableStateOf(true) }
+    var tool by rememberSaveable { mutableStateOf(PlanTool.Draw) }
+    var selectedEdgeId by rememberSaveable { mutableStateOf<String?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
     var showRename by rememberSaveable { mutableStateOf(false) }
     var showClear by rememberSaveable { mutableStateOf(false) }
     var showDelete by rememberSaveable { mutableStateOf(false) }
+
+    // The selection must not outlive its edge: undo or a full clear removes it.
+    val selectedEdge = plan.edges.firstOrNull { it.id == selectedEdgeId }
 
     BackHandler { onBack() }
 
@@ -80,12 +92,25 @@ fun PlanEditorScreen(
                 actions = {
                     IconButton(
                         onClick = viewModel::undo,
-                        enabled = plan.hasDrawing,
+                        enabled = canUndo,
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_undo),
                             contentDescription = stringResource(R.string.action_undo),
                         )
+                    }
+                    if (selectedEdge != null) {
+                        IconButton(
+                            onClick = {
+                                selectedEdgeId = null
+                                viewModel.removeEdge(selectedEdge.id)
+                            },
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_delete),
+                                contentDescription = stringResource(R.string.plan_delete_edge),
+                            )
+                        }
                     }
                     IconToggleButton(
                         checked = showGrid,
@@ -166,7 +191,11 @@ fun PlanEditorScreen(
         ) {
             PlanCanvas(
                 plan = plan,
+                tool = tool,
                 onSegment = viewModel::addSegment,
+                onMoveNode = viewModel::moveNode,
+                onSelectEdge = { selectedEdgeId = it },
+                selectedEdgeId = selectedEdge?.id,
                 showGrid = showGrid,
                 modifier = Modifier.fillMaxSize(),
             )
@@ -180,6 +209,63 @@ fun PlanEditorScreen(
                         .align(Alignment.Center)
                         .padding(horizontal = 40.dp),
                 )
+            }
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                if (tool == PlanTool.Edit && plan.hasDrawing) {
+                    Text(
+                        text = stringResource(R.string.plan_edit_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .padding(bottom = 8.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                                shape = MaterialTheme.shapes.small,
+                            )
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                    )
+                }
+                SingleChoiceSegmentedButtonRow {
+                    PlanTool.entries.forEachIndexed { index, value ->
+                        SegmentedButton(
+                            selected = tool == value,
+                            onClick = {
+                                tool = value
+                                selectedEdgeId = null
+                            },
+                            shape = SegmentedButtonDefaults.itemShape(
+                                index = index,
+                                count = PlanTool.entries.size,
+                            ),
+                            icon = {
+                                Icon(
+                                    painter = painterResource(
+                                        when (value) {
+                                            PlanTool.Draw -> R.drawable.ic_edit
+                                            PlanTool.Edit -> R.drawable.ic_select
+                                        },
+                                    ),
+                                    contentDescription = null,
+                                )
+                            },
+                        ) {
+                            Text(
+                                stringResource(
+                                    when (value) {
+                                        PlanTool.Draw -> R.string.plan_tool_draw
+                                        PlanTool.Edit -> R.string.plan_tool_edit
+                                    },
+                                ),
+                            )
+                        }
+                    }
+                }
             }
         }
     }

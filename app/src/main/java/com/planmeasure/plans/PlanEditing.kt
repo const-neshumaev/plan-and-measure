@@ -1,10 +1,11 @@
 package com.planmeasure.plans
 
 /**
- * Applies drawing gestures to a plan.
+ * Applies drawing and editing gestures to a plan.
  *
- * One gesture adds one edge. The edge continues the contour that ends at its start node,
+ * One drawing gesture adds one edge. The edge continues the contour that ends at its start node,
  * otherwise it starts a new contour. Ending an edge on the first node of a contour closes it.
+ * Editing moves a node, which drags every edge that touches it, or removes one edge.
  */
 object PlanEditing {
 
@@ -51,21 +52,67 @@ object PlanEditing {
         return document.copy(nodes = nodes, contours = contours)
     }
 
-    /** Removes the last drawn edge and any node that no longer belongs to an edge. */
-    fun undoLastSegment(document: PlanDocument): PlanDocument {
-        val contourIndex = document.contours.indexOfLast { it.edges.isNotEmpty() }
-        if (contourIndex < 0) return document
+    /**
+     * Moves [nodeId] to [to], snapped to the grid by [PlanGeometry.snapNodeMove].
+     *
+     * A node is shared by every edge that touches it, so the whole shape follows it. Returns the
+     * same instance when the node is unknown or the target would collapse an incident edge.
+     */
+    fun moveNode(document: PlanDocument, nodeId: String, to: PlanPoint): PlanDocument {
+        val node = document.nodes.firstOrNull { it.id == nodeId } ?: return document
+        val target = PlanGeometry.snapNodeMove(document.nodes, document.edges, node, to)
+            ?: return document
+        if (target.x == node.x && target.y == node.y) return document
+        return document.copy(
+            nodes = document.nodes.map { current ->
+                if (current.id == nodeId) current.copy(x = target.x, y = target.y) else current
+            },
+        )
+    }
 
-        val contour = document.contours[contourIndex]
-        val edges = contour.edges.dropLast(1)
-        val contours = document.contours.toMutableList()
-        if (edges.isEmpty()) {
-            contours.removeAt(contourIndex)
-        } else {
-            contours[contourIndex] = contour.copy(edges = edges)
+    /**
+     * Removes the edge [edgeId] and drops nodes that no longer belong to any edge.
+     *
+     * A contour is a chain of connected edges, so removing a middle edge splits it: the leftovers
+     * become separate contours instead of one contour whose edges are no longer connected.
+     * [newId] is called for the contours created by a split.
+     */
+    fun removeEdge(
+        document: PlanDocument,
+        edgeId: String,
+        newId: () -> String,
+    ): PlanDocument {
+        if (document.edges.none { it.id == edgeId }) return document
+
+        val contours = mutableListOf<PlanContour>()
+        document.contours.forEach { contour ->
+            val remaining = contour.edges.filterNot { it.id == edgeId }
+            if (remaining.isEmpty()) return@forEach
+            connectedChains(remaining).forEachIndexed { index, chain ->
+                contours += if (index == 0) contour.copy(edges = chain) else PlanContour(newId(), chain)
+            }
         }
 
         return document.copy(contours = contours).withoutUnusedNodes()
+    }
+
+    /**
+     * Splits edges, whose order is preserved, into maximal chains: each edge of a chain starts
+     * where the previous one ends.
+     */
+    private fun connectedChains(edges: List<PlanEdge>): List<List<PlanEdge>> {
+        val chains = mutableListOf<List<PlanEdge>>()
+        var current = mutableListOf<PlanEdge>()
+        edges.forEach { edge ->
+            val previous = current.lastOrNull()
+            if (previous != null && previous.endNodeId != edge.startNodeId) {
+                chains += current
+                current = mutableListOf()
+            }
+            current += edge
+        }
+        if (current.isNotEmpty()) chains += current
+        return chains
     }
 
     fun clearDrawing(document: PlanDocument): PlanDocument =

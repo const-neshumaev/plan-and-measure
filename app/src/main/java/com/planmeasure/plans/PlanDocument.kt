@@ -57,6 +57,10 @@ data class PlanDocument(
     val edgeCount: Int
         get() = contours.sumOf { it.edges.size }
 
+    /** All edges of all contours; a node can be shared by edges of different contours. */
+    val edges: List<PlanEdge>
+        get() = contours.flatMap { it.edges }
+
     val hasDrawing: Boolean
         get() = edgeCount > 0
 }

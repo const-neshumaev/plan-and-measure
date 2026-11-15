@@ -88,33 +88,100 @@ class PlanEditingTest {
     }
 
     @Test
-    fun undoRemovesLastEdgeAndUnusedNode() {
+    fun movesNodeToGridCrossing() {
         var plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
         plan = segment(plan, 8.0, 2.0, 8.0, 9.0)
+        val node = plan.nodes.first { it.x == 8.0 && it.y == 2.0 }
 
-        val undone = PlanEditing.undoLastSegment(plan)
+        val moved = PlanEditing.moveNode(plan, node.id, PlanPoint(10.3, 3.6))
 
-        assertEquals(1, undone.edgeCount)
-        assertEquals(2, undone.nodes.size)
+        assertEquals(PlanPoint(10.0, 4.0), positionOf(moved, node.id))
+        assertEquals(1, moved.contours.size)
+        assertEquals(3, moved.nodes.size)
     }
 
     @Test
-    fun undoReopensClosedContour() {
+    fun moveNodeKeepsEdgesAttached() {
         var plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
-        plan = segment(plan, 8.0, 2.0, 8.0, 8.0)
-        plan = segment(plan, 8.0, 8.0, 2.0, 8.0)
-        plan = segment(plan, 2.0, 8.0, 2.0, 2.0)
+        plan = segment(plan, 8.0, 2.0, 8.0, 9.0)
+        val node = plan.nodes.first { it.x == 8.0 && it.y == 2.0 }
 
-        val undone = PlanEditing.undoLastSegment(plan)
+        val moved = PlanEditing.moveNode(plan, node.id, PlanPoint(11.0, 6.0))
 
-        assertEquals(3, undone.edgeCount)
-        assertFalse(undone.contours.single().isClosed)
+        val edges = moved.contours.single().edges
+        assertEquals(2, edges.size)
+        assertTrue(edges.any { it.startNodeId == node.id || it.endNodeId == node.id })
     }
 
     @Test
-    fun undoOnEmptyPlanChangesNothing() {
-        val plan = emptyPlan()
-        assertSame(plan, PlanEditing.undoLastSegment(plan))
+    fun moveNodeClampsToWorld() {
+        val plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
+        val node = plan.nodes.first { it.x == 8.0 }
+
+        val moved = PlanEditing.moveNode(plan, node.id, PlanPoint(99.0, 99.0))
+
+        assertEquals(PlanPoint(PlanWorld.WIDTH, PlanWorld.HEIGHT), positionOf(moved, node.id))
+    }
+
+    @Test
+    fun moveNodeRefusesToCollapseEdge() {
+        val plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
+        val node = plan.nodes.first { it.x == 2.0 }
+
+        assertSame(plan, PlanEditing.moveNode(plan, node.id, PlanPoint(8.2, 2.3)))
+        assertSame(plan, PlanEditing.moveNode(plan, node.id, PlanPoint(2.2, 2.2)))
+    }
+
+    @Test
+    fun moveNodeIgnoresUnknownNode() {
+        val plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
+
+        assertSame(plan, PlanEditing.moveNode(plan, "missing", PlanPoint(4.0, 4.0)))
+    }
+
+    @Test
+    fun removeEdgeSplitsContourIntoChains() {
+        var plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
+        plan = segment(plan, 8.0, 2.0, 8.0, 9.0)
+        plan = segment(plan, 8.0, 9.0, 2.0, 9.0)
+        val middle = plan.contours.single().edges[1]
+
+        val removed = PlanEditing.removeEdge(plan, middle.id, ids)
+
+        assertEquals(2, removed.contours.size)
+        assertEquals(2, removed.edgeCount)
+        assertEquals(4, removed.nodes.size)
+        assertTrue(removed.contours.none { it.isClosed })
+    }
+
+    @Test
+    fun removeEdgeOpensClosedContour() {
+        val plan = square()
+        assertTrue(plan.contours.single().isClosed)
+
+        val removed = PlanEditing.removeEdge(plan, plan.contours.single().edges.first().id, ids)
+
+        assertEquals(1, removed.contours.size)
+        assertEquals(3, removed.edgeCount)
+        assertEquals(4, removed.nodes.size)
+        assertFalse(removed.contours.single().isClosed)
+    }
+
+    @Test
+    fun removeEdgeDropsEmptyContourAndUnusedNodes() {
+        val plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
+
+        val removed = PlanEditing.removeEdge(plan, plan.edges.single().id, ids)
+
+        assertTrue(removed.contours.isEmpty())
+        assertTrue(removed.nodes.isEmpty())
+    }
+
+    @Test
+    fun removeEdgeIgnoresUnknownEdge() {
+        val plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
+
+        assertSame(plan, PlanEditing.removeEdge(plan, "missing", ids))
     }
 
     @Test
@@ -139,6 +206,17 @@ class PlanEditingTest {
         magnetRadius = 0.5,
         newId = ids,
     )
+
+    private fun square(): PlanDocument {
+        var plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
+        plan = segment(plan, 8.0, 2.0, 8.0, 8.0)
+        plan = segment(plan, 8.0, 8.0, 2.0, 8.0)
+        return segment(plan, 2.0, 8.0, 2.0, 2.0)
+    }
+
+    private fun positionOf(plan: PlanDocument, nodeId: String): PlanPoint? = plan.nodes
+        .firstOrNull { it.id == nodeId }
+        ?.let { PlanPoint(it.x, it.y) }
 
     private fun emptyPlan() = PlanDocument(
         id = PLAN_ID,

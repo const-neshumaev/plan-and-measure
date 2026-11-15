@@ -89,8 +89,78 @@ object PlanGeometry {
         return SegmentSnap(end, null)
     }
 
+    /**
+     * Target position of a dragged node, or `null` when the move is not allowed.
+     *
+     * The node stays on the grid even when moved by hand: a plan that mixes exact grid crossings
+     * with finger coordinates of unknown precision cannot be read back reliably. A move that
+     * would collapse an incident edge into a point is refused, because the edge would lose its
+     * direction and could never be selected again.
+     */
+    fun snapNodeMove(
+        nodes: List<PlanNode>,
+        edges: List<PlanEdge>,
+        node: PlanNode,
+        raw: PlanPoint,
+    ): PlanPoint? {
+        val target = snapToGrid(raw)
+        val collapses = edges.any { edge ->
+            val otherId = when (node.id) {
+                edge.startNodeId -> edge.endNodeId
+                edge.endNodeId -> edge.startNodeId
+                else -> null
+            }
+            val other = nodes.firstOrNull { it.id == otherId } ?: return@any false
+            distance(PlanPoint(other.x, other.y), target) < MIN_SEGMENT
+        }
+        return if (collapses) null else target
+    }
+
+    /**
+     * Edge under a tap: the nearest one whose line comes within [tolerance] world units.
+     *
+     * Tolerance is the only hit area, because a line is thin and a finger is not; the caller
+     * converts the touch radius from dp to world units.
+     */
+    fun nearestEdge(
+        nodes: List<PlanNode>,
+        contours: List<PlanContour>,
+        point: PlanPoint,
+        tolerance: Double,
+    ): PlanEdge? {
+        val nodesById = nodes.associateBy { it.id }
+        var best: PlanEdge? = null
+        var bestDistance = tolerance
+        contours.forEach { contour ->
+            contour.edges.forEach { edge ->
+                val start = nodesById[edge.startNodeId] ?: return@forEach
+                val end = nodesById[edge.endNodeId] ?: return@forEach
+                val distance = distanceToSegment(
+                    point = point,
+                    start = PlanPoint(start.x, start.y),
+                    end = PlanPoint(end.x, end.y),
+                )
+                if (distance <= bestDistance) {
+                    best = edge
+                    bestDistance = distance
+                }
+            }
+        }
+        return best
+    }
+
     private fun distance(first: PlanPoint, second: PlanPoint): Double =
         hypot(second.x - first.x, second.y - first.y)
+
+    private fun distanceToSegment(point: PlanPoint, start: PlanPoint, end: PlanPoint): Double {
+        val dx = end.x - start.x
+        val dy = end.y - start.y
+        val lengthSquared = dx * dx + dy * dy
+        if (lengthSquared == 0.0) return distance(point, start)
+        val projection = ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared
+        val t = projection.coerceIn(0.0, 1.0)
+        return distance(point, PlanPoint(start.x + t * dx, start.y + t * dy))
+    }
 
     private fun snapDirection(start: PlanPoint, raw: PlanPoint): PlanPoint? {
         val dx = raw.x - start.x
