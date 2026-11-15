@@ -14,4 +14,4 @@ captures/
 !debug.keystore
 
 # Local BLE captures contain MAC addresses and names of nearby third-party devices.
-docs/dumps/
+docs/protocol-research/dumps/

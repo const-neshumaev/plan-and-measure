@@ -15,7 +15,7 @@ object BleUuids {
     /** Client Characteristic Configuration Descriptor (0x2902). */
     val CCCD: UUID = UUID.fromString("00002902$BASE_UUID_SUFFIX")
 
-    /** Custom service advertised by the rangefinder (see docs/protocol.md). */
+    /** Custom service advertised by the rangefinder (see docs/protocol-research/protocol.md). */
     val RANGEFINDER_SERVICE: UUID = UUID.fromString("0000cbbb$BASE_UUID_SUFFIX")
 
     private val known: Map<String, String> = buildMap {
