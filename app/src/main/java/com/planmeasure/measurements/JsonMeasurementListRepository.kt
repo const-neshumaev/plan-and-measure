@@ -1,7 +1,7 @@
 package com.planmeasure.measurements
 
+import com.planmeasure.storage.JsonDocumentStore
 import java.io.File
-import java.io.FileOutputStream
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,16 +14,17 @@ import kotlinx.coroutines.withContext
 /**
  * Stores every list as one JSON document in [directory].
  *
- * Writes are atomic (temp file + rename) and keep the previous version as `.bak`, which is read
- * when the main file is corrupted. A single [Mutex] serializes all file operations, so a
- * measurement arriving from BLE cannot interleave with an edit from the UI.
+ * Writes are atomic and keep the previous version as `.bak`, which is read when the main file
+ * is corrupted. A single [Mutex] serializes all file operations, so a measurement arriving from
+ * BLE cannot interleave with an edit from the UI.
  */
 class JsonMeasurementListRepository(
-    private val directory: File,
+    directory: File,
     private val clock: () -> Long = System::currentTimeMillis,
     private val idGenerator: () -> String = { UUID.randomUUID().toString() },
 ) : MeasurementListRepository {
 
+    private val store = JsonDocumentStore(directory)
     private val mutex = Mutex()
     private val summaries = LinkedHashMap<String, MeasurementListSummary>()
 
@@ -32,13 +33,9 @@ class JsonMeasurementListRepository(
 
     override suspend fun reload() = withContext(Dispatchers.IO) {
         mutex.withLock {
-            directory.mkdirs()
-            // A crash between writing the temp file and renaming it leaves only a stale copy;
-            // the main document is still authoritative.
-            directory.listFiles { file -> file.isFile && file.name.endsWith(".json.tmp") }
-                ?.forEach { it.delete() }
+            store.prepare()
             summaries.clear()
-            files().forEach { file ->
+            store.documents().forEach { file ->
                 val document = readDocument(file) ?: return@forEach
                 summaries[document.id] = document.summary()
             }
@@ -49,7 +46,7 @@ class JsonMeasurementListRepository(
     override suspend fun load(id: String): MeasurementList? = withContext(Dispatchers.IO) {
         mutex.withLock {
             if (!isValidId(id)) return@withLock null
-            readDocument(fileFor(id))
+            readDocument(store.fileFor(id))
         }
     }
 
@@ -85,7 +82,7 @@ class JsonMeasurementListRepository(
             mutex.withLock {
                 val trimmed = name.trim()
                 if (trimmed.isEmpty() || !isValidId(id)) return@withLock null
-                val current = readDocument(fileFor(id)) ?: return@withLock null
+                val current = readDocument(store.fileFor(id)) ?: return@withLock null
                 val updated = current.copy(name = trimmed, updatedAt = clock())
                 writeDocument(updated)
                 summaries[updated.id] = updated.summary()
@@ -97,23 +94,11 @@ class JsonMeasurementListRepository(
     override suspend fun delete(id: String) = withContext(Dispatchers.IO) {
         mutex.withLock {
             if (!isValidId(id)) return@withLock
-            val target = fileFor(id)
-            target.delete()
-            backupFor(target).delete()
-            File(directory, "${target.name}.tmp").delete()
+            store.delete(id)
             summaries.remove(id)
             publishLocked()
         }
     }
-
-    private fun files(): List<File> =
-        directory.listFiles { file -> file.isFile && file.extension == "json" }
-            ?.toList()
-            .orEmpty()
-
-    private fun fileFor(id: String): File = File(directory, "$id.json")
-
-    private fun backupFor(file: File): File = File(directory, "${file.name}.bak")
 
     private fun isValidId(id: String): Boolean = runCatching { UUID.fromString(id) }.isSuccess
 
@@ -129,35 +114,16 @@ class JsonMeasurementListRepository(
      */
     private fun readDocument(file: File): MeasurementList? {
         if (!file.isFile) return null
-        for (candidate in listOf(file, backupFor(file))) {
-            if (!candidate.isFile) continue
-            val text = runCatching { candidate.readText(Charsets.UTF_8) }.getOrNull() ?: continue
+        for (text in store.readTexts(file)) {
             val document = runCatching { MeasurementListJson.decode(text) }.getOrNull() ?: continue
-            if (isValidId(document.id) && fileFor(document.id).name == file.name) return document
+            if (isValidId(document.id) && store.fileFor(document.id).name == file.name) {
+                return document
+            }
         }
         return null
     }
 
     private fun writeDocument(list: MeasurementList) {
-        directory.mkdirs()
-        val target = fileFor(list.id)
-        val text = MeasurementListJson.encode(list)
-        val temp = File(directory, "${target.name}.tmp")
-
-        FileOutputStream(temp).use { stream ->
-            stream.write(text.toByteArray(Charsets.UTF_8))
-            runCatching { stream.fd.sync() }
-        }
-
-        if (target.exists()) {
-            runCatching { target.copyTo(backupFor(target), overwrite = true) }
-        }
-
-        if (!temp.renameTo(target)) {
-            // Windows does not replace an existing file with renameTo. Production runs on
-            // Android, but unit tests execute this code on a desktop JVM.
-            target.writeText(text, Charsets.UTF_8)
-            temp.delete()
-        }
+        store.write(list.id, MeasurementListJson.encode(list))
     }
 }

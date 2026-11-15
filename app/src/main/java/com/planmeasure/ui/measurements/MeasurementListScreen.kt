@@ -59,6 +59,7 @@ import com.planmeasure.measurements.MeasurementList
 import com.planmeasure.measurements.MeasurementSource
 import com.planmeasure.measurements.MeasurementsViewModel
 import com.planmeasure.ui.components.EmptyState
+import com.planmeasure.ui.components.ListNameDialog
 import java.util.Locale
 import kotlinx.coroutines.launch
 
@@ -281,6 +282,8 @@ fun MeasurementListScreen(
     if (showRename) {
         ListNameDialog(
             title = stringResource(R.string.measurement_list_rename_title),
+            labelRes = R.string.measurement_list_name,
+            hintRes = R.string.measurement_list_name_hint,
             initialName = list.name,
             confirmLabel = stringResource(R.string.action_save),
             onConfirm = { name ->

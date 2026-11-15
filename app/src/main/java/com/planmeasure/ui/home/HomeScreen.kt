@@ -68,7 +68,26 @@ fun HomeScreen(
                 )
             }
             item { SectionGrid(onOpenSection) }
-            item { LabRow(onOpenLab) }
+            item {
+                HomeShortcutRow(
+                    icon = R.drawable.ic_section_settings,
+                    title = R.string.section_settings,
+                    subtitle = R.string.section_settings_details,
+                    container = MaterialTheme.colorScheme.surfaceVariant,
+                    content = MaterialTheme.colorScheme.onSurfaceVariant,
+                    onClick = { onOpenSection(HomeSection.Settings) },
+                )
+            }
+            item {
+                HomeShortcutRow(
+                    icon = R.drawable.ic_lab_flask,
+                    title = R.string.home_open_lab,
+                    subtitle = R.string.home_open_lab_details,
+                    container = MaterialTheme.colorScheme.tertiaryContainer,
+                    content = MaterialTheme.colorScheme.onTertiaryContainer,
+                    onClick = onOpenLab,
+                )
+            }
             item {
                 Text(
                     text = stringResource(R.string.home_version, BuildConfig.VERSION_NAME),
@@ -230,26 +249,26 @@ private fun SectionGrid(onOpenSection: (HomeSection) -> Unit) {
             colors.onPrimaryContainer,
         ),
         SectionTileData(
+            HomeSection.Plans,
+            R.drawable.ic_section_plans,
+            R.string.section_plans,
+            R.string.section_plans_details,
+            colors.secondaryContainer,
+            colors.onSecondaryContainer,
+        ),
+        SectionTileData(
             HomeSection.Projects,
             R.drawable.ic_section_projects,
             R.string.section_projects,
             R.string.section_projects_details,
-            colors.secondaryContainer,
-            colors.onSecondaryContainer,
+            colors.tertiaryContainer,
+            colors.onTertiaryContainer,
         ),
         SectionTileData(
             HomeSection.Capture,
             R.drawable.ic_section_capture,
             R.string.section_capture,
             R.string.section_capture_details,
-            colors.tertiaryContainer,
-            colors.onTertiaryContainer,
-        ),
-        SectionTileData(
-            HomeSection.Settings,
-            R.drawable.ic_section_settings,
-            R.string.section_settings,
-            R.string.section_settings_details,
             colors.surfaceVariant,
             colors.onSurfaceVariant,
         ),
@@ -313,13 +332,19 @@ private fun SectionTile(
 }
 
 @Composable
-private fun LabRow(onClick: () -> Unit) {
-    val content = MaterialTheme.colorScheme.onTertiaryContainer
+private fun HomeShortcutRow(
+    @DrawableRes icon: Int,
+    @StringRes title: Int,
+    @StringRes subtitle: Int,
+    container: Color,
+    content: Color,
+    onClick: () -> Unit,
+) {
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.tertiaryContainer,
+        color = container,
         contentColor = content,
     ) {
         Row(
@@ -328,7 +353,7 @@ private fun LabRow(onClick: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Icon(
-                painter = painterResource(R.drawable.ic_lab_flask),
+                painter = painterResource(icon),
                 contentDescription = null,
                 modifier = Modifier.size(28.dp),
             )
@@ -337,11 +362,11 @@ private fun LabRow(onClick: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
-                    text = stringResource(R.string.home_open_lab),
+                    text = stringResource(title),
                     style = MaterialTheme.typography.titleMedium,
                 )
                 Text(
-                    text = stringResource(R.string.home_open_lab_details),
+                    text = stringResource(subtitle),
                     style = MaterialTheme.typography.bodySmall,
                     color = content.copy(alpha = 0.8f),
                 )

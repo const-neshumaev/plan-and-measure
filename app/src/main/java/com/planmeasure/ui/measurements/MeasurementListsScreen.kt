@@ -47,6 +47,9 @@ import com.planmeasure.R
 import com.planmeasure.measurements.MeasurementListSummary
 import com.planmeasure.measurements.MeasurementsViewModel
 import com.planmeasure.ui.components.EmptyState
+import com.planmeasure.ui.components.ListNameDialog
+import com.planmeasure.ui.components.defaultNameTimestamp
+import com.planmeasure.ui.components.formatUpdatedAt
 import java.util.Locale
 
 /** Saved measurement lists; the entry point of the Measurements section. */
@@ -60,7 +63,7 @@ fun MeasurementListsScreen(
     val loading by viewModel.loading.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val locale = LocalConfiguration.current.locales[0]
-    val defaultTimestamp = remember(locale) { defaultListTimestamp(locale) }
+    val defaultTimestamp = remember(locale) { defaultNameTimestamp(locale) }
     val defaultName = stringResource(R.string.measurement_list_default_name, defaultTimestamp)
 
     var showCreate by rememberSaveable { mutableStateOf(false) }
@@ -151,6 +154,8 @@ fun MeasurementListsScreen(
     if (showCreate) {
         ListNameDialog(
             title = stringResource(R.string.measurement_list_new),
+            labelRes = R.string.measurement_list_name,
+            hintRes = R.string.measurement_list_name_hint,
             initialName = defaultName,
             confirmLabel = stringResource(R.string.action_create),
             onConfirm = { name ->
@@ -164,6 +169,8 @@ fun MeasurementListsScreen(
     renaming?.let { summary ->
         ListNameDialog(
             title = stringResource(R.string.measurement_list_rename_title),
+            labelRes = R.string.measurement_list_name,
+            hintRes = R.string.measurement_list_name_hint,
             initialName = summary.name,
             confirmLabel = stringResource(R.string.action_save),
             onConfirm = { name ->
@@ -242,7 +249,7 @@ private fun MeasurementListRow(
                         ),
                         stringResource(
                             R.string.measurement_list_updated,
-                            formatListUpdated(summary.updatedAt, locale),
+                            formatUpdatedAt(summary.updatedAt, locale),
                         ),
                     ),
                     style = MaterialTheme.typography.bodySmall,

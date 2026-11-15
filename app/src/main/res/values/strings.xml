@@ -51,6 +51,8 @@
     <!-- Sections -->
     <string name="section_measurements">Measurements</string>
     <string name="section_measurements_details">Saved lists and readings</string>
+    <string name="section_plans">Plans</string>
+    <string name="section_plans_details">Room outlines drawn by hand</string>
     <string name="section_projects">Projects</string>
     <string name="section_projects_details">Rooms, plans and measurements</string>
     <string name="section_capture">Capture</string>
@@ -109,6 +111,32 @@
     <string name="unit_millimeters">mm</string>
     <string name="unit_feet">ft</string>
     <string name="unit_inches">in</string>
+
+    <!-- Plans -->
+    <string name="plan_new">New plan</string>
+    <string name="plan_name">Plan name</string>
+    <string name="plan_name_hint">e.g. Living room</string>
+    <string name="plan_default_name">Plan %1$s</string>
+    <string name="plan_rename_title">Rename plan</string>
+    <string name="plan_delete_title">Delete plan?</string>
+    <string name="plan_delete_text">The drawing “%1$s” will be deleted permanently.</string>
+    <string name="plan_updated">Updated %1$s</string>
+    <string name="plan_meta">%1$s · %2$s</string>
+    <plurals name="plan_edges_count">
+        <item quantity="one">%1$d edge</item>
+        <item quantity="other">%1$d edges</item>
+    </plurals>
+    <string name="plan_lists_empty_title">No saved plans yet</string>
+    <string name="plan_lists_empty_text">Create a plan and draw the room outline with your finger.</string>
+    <string name="plan_draw_hint">Drag to draw a wall.\nThe line snaps to the grid and to 45° steps.</string>
+    <string name="plan_grid">Grid</string>
+    <string name="plan_clear">Clear drawing</string>
+    <string name="plan_clear_title">Clear drawing?</string>
+    <string name="plan_clear_text">All lines in “%1$s” will be removed.</string>
+    <string name="plan_error_save">Could not save the plan</string>
+    <string name="plan_error_create">Could not create the plan</string>
+    <string name="plan_error_delete">Could not delete the plan</string>
+    <string name="plan_error_load">Could not open the plan</string>
 
     <!-- Projects (placeholder) -->
     <string name="projects_demo_apartment">Apartment · living room</string>
