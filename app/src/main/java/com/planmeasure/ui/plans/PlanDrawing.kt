@@ -30,9 +30,14 @@ import kotlin.math.min
 
 private val CanvasPadding = 10.dp
 private val MagnetRadius = 18.dp
+private val NodeGrabRadius = 24.dp
+private val EdgeTapRadius = 16.dp
 private val NodeRadius = 5.dp
 private val LineWidth = 2.5.dp
 private const val MAJOR_GRID_STEP = 5
+
+/** What a drag on the canvas does: draw a new wall or reshape the existing plan. */
+enum class PlanTool { Draw, Edit }
 
 /**
  * Maps plan world units to canvas pixels.
@@ -74,24 +79,32 @@ internal class WorldTransform(width: Float, height: Float, padding: Float = 0f) 
  * A drag becomes one straight edge: the start snaps to a node or the grid, the direction to 45°
  * and the end to the grid. The callback receives raw world points and the magnet radius, because
  * the same rules must be applied by [com.planmeasure.plans.PlanEditing].
+ *
+ * In [PlanTool.Edit] the same drag moves the node under the finger, snapped to the grid, and a tap
+ * selects or clears an edge. The preview is local state: nothing is written until the gesture ends.
  */
 @Composable
 fun PlanCanvas(
     plan: PlanDocument,
+    tool: PlanTool,
     onSegment: (from: PlanPoint, to: PlanPoint, magnetRadius: Double) -> Unit,
+    onMoveNode: (nodeId: String, to: PlanPoint) -> Unit,
+    onSelectEdge: (edgeId: String?) -> Unit,
     modifier: Modifier = Modifier,
+    selectedEdgeId: String? = null,
     showGrid: Boolean = true,
 ) {
     val edgeColor = MaterialTheme.colorScheme.onSurface
     val nodeFill = MaterialTheme.colorScheme.surface
     val gridColor = MaterialTheme.colorScheme.outlineVariant
-    val previewColor = MaterialTheme.colorScheme.primary
+    val accentColor = MaterialTheme.colorScheme.primary
 
     var gestureStart by remember { mutableStateOf<PlanPoint?>(null) }
     var previewEnd by remember { mutableStateOf<PlanPoint?>(null) }
+    var draggedNode by remember { mutableStateOf<NodeDrag?>(null) }
 
-    Canvas(
-        modifier = modifier.pointerInput(plan) {
+    val gesture = when (tool) {
+        PlanTool.Draw -> Modifier.pointerInput(plan) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false)
                 val transform = WorldTransform(size.width.toFloat(), size.height.toFloat(), CanvasPadding.toPx())
@@ -141,21 +154,92 @@ fun PlanCanvas(
                     }
                 }
             }
-        },
-    ) {
+        }
+
+        PlanTool.Edit -> Modifier.pointerInput(plan, selectedEdgeId) {
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                val transform = WorldTransform(size.width.toFloat(), size.height.toFloat(), CanvasPadding.toPx())
+                val downWorld = transform.toWorld(down.position)
+                val grabbed = PlanGeometry.nearestNode(
+                    nodes = plan.nodes,
+                    point = downWorld,
+                    radius = (NodeGrabRadius.toPx() / transform.scale).toDouble(),
+                )
+                val target = if (grabbed == null) {
+                    PlanGeometry.nearestEdge(
+                        nodes = plan.nodes,
+                        contours = plan.contours,
+                        point = downWorld,
+                        tolerance = (EdgeTapRadius.toPx() / transform.scale).toDouble(),
+                    )
+                } else {
+                    null
+                }
+
+                var dragging = false
+                var finished = false
+                var drop: PlanPoint? = null
+                try {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        if (change.changedToUpIgnoreConsumed()) {
+                            finished = true
+                            break
+                        }
+                        val moved = (change.position - down.position).getDistance()
+                        if (!dragging && moved > viewConfiguration.touchSlop) dragging = true
+                        if (dragging) {
+                            change.consume()
+                            if (grabbed != null) {
+                                drop = PlanGeometry.snapNodeMove(
+                                    nodes = plan.nodes,
+                                    edges = plan.edges,
+                                    node = grabbed,
+                                    raw = transform.toWorld(change.position),
+                                )
+                                draggedNode = drop?.let { NodeDrag(grabbed.id, it) }
+                            }
+                        }
+                    }
+                } finally {
+                    draggedNode = null
+                    if (finished) {
+                        when {
+                            // A drag on empty space does nothing; a tap selects the edge under it.
+                            grabbed == null && !dragging -> onSelectEdge(target?.id)
+                            grabbed != null && drop != null -> onMoveNode(grabbed.id, drop)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Canvas(modifier = modifier.then(gesture)) {
         val transform = WorldTransform(size.width, size.height, CanvasPadding.toPx())
         if (showGrid) drawPlanGrid(transform, gridColor)
 
         val nodesById = plan.nodes.associateBy { it.id }
+        val drag = draggedNode
+
+        // The dragged node is drawn at its preview position, so the whole shape follows the finger.
+        fun pointOf(nodeId: String): PlanPoint? = when {
+            drag != null && drag.nodeId == nodeId -> drag.point
+            else -> nodesById[nodeId]?.let { PlanPoint(it.x, it.y) }
+        }
+
         plan.contours.forEach { contour ->
             contour.edges.forEach { edge ->
-                val from = nodesById[edge.startNodeId] ?: return@forEach
-                val to = nodesById[edge.endNodeId] ?: return@forEach
+                val from = pointOf(edge.startNodeId) ?: return@forEach
+                val to = pointOf(edge.endNodeId) ?: return@forEach
+                val selected = edge.id == selectedEdgeId
                 drawLine(
-                    color = edgeColor,
-                    start = transform.toPx(PlanPoint(from.x, from.y)),
-                    end = transform.toPx(PlanPoint(to.x, to.y)),
-                    strokeWidth = LineWidth.toPx(),
+                    color = if (selected) accentColor else edgeColor,
+                    start = transform.toPx(from),
+                    end = transform.toPx(to),
+                    strokeWidth = if (selected) LineWidth.toPx() * 2f else LineWidth.toPx(),
                     cap = StrokeCap.Round,
                 )
             }
@@ -165,7 +249,7 @@ fun PlanCanvas(
         val end = previewEnd
         if (start != null && end != null && start != end) {
             drawLine(
-                color = previewColor,
+                color = accentColor,
                 start = transform.toPx(start),
                 end = transform.toPx(end),
                 strokeWidth = LineWidth.toPx(),
@@ -177,10 +261,19 @@ fun PlanCanvas(
         }
 
         plan.nodes.forEach { node ->
-            val center = transform.toPx(PlanPoint(node.x, node.y))
+            val point = pointOf(node.id) ?: return@forEach
+            val center = transform.toPx(point)
+            val highlighted = drag != null && drag.nodeId == node.id
+            if (highlighted) {
+                drawCircle(
+                    color = accentColor.copy(alpha = 0.18f),
+                    radius = NodeRadius.toPx() * 2.8f,
+                    center = center,
+                )
+            }
             drawCircle(color = nodeFill, radius = NodeRadius.toPx(), center = center)
             drawCircle(
-                color = edgeColor,
+                color = if (highlighted) accentColor else edgeColor,
                 radius = NodeRadius.toPx(),
                 center = center,
                 style = Stroke(width = 2.dp.toPx()),
@@ -188,6 +281,8 @@ fun PlanCanvas(
         }
     }
 }
+
+private data class NodeDrag(val nodeId: String, val point: PlanPoint)
 
 /** Small drawing preview for the saved-plans list; no grid and no nodes. */
 @Composable

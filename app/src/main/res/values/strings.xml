@@ -130,6 +130,10 @@
     <string name="plan_lists_empty_text">Create a plan and draw the room outline with your finger.</string>
     <string name="plan_draw_hint">Drag to draw a wall.\nThe line snaps to the grid and to 45° steps.</string>
     <string name="plan_grid">Grid</string>
+    <string name="plan_tool_draw">Draw</string>
+    <string name="plan_tool_edit">Edit</string>
+    <string name="plan_edit_hint">Drag a node to reshape the plan. Tap a line to select it.</string>
+    <string name="plan_delete_edge">Delete line</string>
     <string name="plan_clear">Clear drawing</string>
     <string name="plan_clear_title">Clear drawing?</string>
     <string name="plan_clear_text">All lines in “%1$s” will be removed.</string>
