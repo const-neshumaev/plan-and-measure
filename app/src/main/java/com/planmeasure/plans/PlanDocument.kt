@@ -3,7 +3,20 @@ package com.planmeasure.plans
 import kotlinx.serialization.Serializable
 
 /** Current version of the on-disk plan document. Bump when the shape changes. */
-const val PLAN_SCHEMA_VERSION = 1
+const val PLAN_SCHEMA_VERSION = 2
+
+/**
+ * Size of the drawing sheet in grid units; the sheet is a rectangle starting at the origin.
+ *
+ * The size is stored with the drawing instead of being a constant: the sheet grows when a wall is
+ * pulled past its border, and a plan opened on another device must keep the sheet it was drawn on.
+ * Documents written before version 2 get the default size, see [PlanWorld].
+ */
+@Serializable
+data class PlanSize(
+    val width: Double = PlanWorld.DEFAULT_WIDTH,
+    val height: Double = PlanWorld.DEFAULT_HEIGHT,
+)
 
 /**
  * A point of the drawing in abstract world units, not pixels: see [PlanWorld] and ADR 0004.
@@ -51,6 +64,7 @@ data class PlanDocument(
     val name: String,
     val createdAt: Long,
     val updatedAt: Long = createdAt,
+    val world: PlanSize = PlanSize(),
     val nodes: List<PlanNode> = emptyList(),
     val contours: List<PlanContour> = emptyList(),
 ) {

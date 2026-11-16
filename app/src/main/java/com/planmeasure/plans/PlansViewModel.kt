@@ -63,7 +63,13 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
                     report(R.string.plan_error_load)
                 } else {
                     resetUndo()
-                    _openPlan.value = document
+                    // A document written while the sheet size was still capped can contain nodes
+                    // outside the sheet; opening it is the moment to bring the sheet up to date.
+                    val fitted = PlanEditing.fitWorldToDrawing(document)
+                    if (fitted !== document) {
+                        runCatching { repository.update(fitted) }
+                    }
+                    _openPlan.value = fitted
                 }
             }
         }

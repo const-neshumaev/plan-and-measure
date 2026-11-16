@@ -7,15 +7,20 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -24,6 +29,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.AwaitPointerEventScope
+import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -32,11 +39,22 @@ import com.planmeasure.plans.PlanDocument
 import com.planmeasure.plans.PlanEdge
 import com.planmeasure.plans.PlanGeometry
 import com.planmeasure.plans.PlanPoint
-import com.planmeasure.plans.PlanWorld
+import com.planmeasure.plans.PlanSize
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.max
 import kotlin.math.min
 import kotlinx.coroutines.withTimeoutOrNull
 
-private val CanvasPadding = 10.dp
+/**
+ * Free space around the fitted sheet, deliberately generous: the finger has to be able to pull a
+ * node past the border of a sheet that fills the screen, otherwise the sheet can never grow.
+ */
+private val SheetMargin = 32.dp
+
+/** Margins of the small preview in the list; the thumbnail has no room for [SheetMargin]. */
+private val ThumbnailPadding = 4.dp
+
 private val MagnetRadius = 18.dp
 private val NodeGrabRadius = 24.dp
 private val EdgeTapRadius = 16.dp
@@ -48,43 +66,13 @@ private const val RIPPLE_RINGS = 3
 private const val RIPPLE_PERIOD_MILLIS = 1100
 private const val LONG_PRESS_GRAB_MILLIS = 300L
 private const val MAJOR_GRID_STEP = 5
+private const val FIT_REFIT_MILLIS = 250
+
+/** Below this spacing the minor grid lines merge into a solid field and are not drawn. */
+private val MinGridSpacing = 6.dp
 
 /** What a drag on the canvas does: draw a new wall or reshape the existing plan. */
 enum class PlanTool { Draw, Edit }
-
-/**
- * Maps plan world units to canvas pixels.
- *
- * The whole world is fitted uniformly and centered, so the drawing keeps its proportions on any
- * screen and in any orientation. [padding] keeps nodes on the world border away from the edges.
- */
-internal class WorldTransform(width: Float, height: Float, padding: Float = 0f) {
-
-    val scale: Float = min(
-        (width - 2 * padding) / PlanWorld.WIDTH.toFloat(),
-        (height - 2 * padding) / PlanWorld.HEIGHT.toFloat(),
-    ).coerceAtLeast(0.001f)
-
-    private val offsetX = (width - PlanWorld.WIDTH.toFloat() * scale) / 2f
-    private val offsetY = (height - PlanWorld.HEIGHT.toFloat() * scale) / 2f
-
-    fun toPx(point: PlanPoint): Offset = Offset(
-        x = offsetX + point.x.toFloat() * scale,
-        y = offsetY + point.y.toFloat() * scale,
-    )
-
-    fun toWorld(offset: Offset): PlanPoint = PlanPoint(
-        x = ((offset.x - offsetX) / scale).toDouble(),
-        y = ((offset.y - offsetY) / scale).toDouble(),
-    )
-
-    fun worldTopLeft(): Offset = Offset(offsetX, offsetY)
-
-    fun worldSize(): Size = Size(
-        width = PlanWorld.WIDTH.toFloat() * scale,
-        height = PlanWorld.HEIGHT.toFloat() * scale,
-    )
-}
 
 /**
  * Drawing surface of one plan.
@@ -97,6 +85,10 @@ internal class WorldTransform(width: Float, height: Float, padding: Float = 0f) 
  * - a node, grabbed on the first down and moved with the grid snap;
  * - an edge, grabbed after a long press and slid as a whole, so its direction does not change;
  * - empty space, where a tap only clears the selection.
+ *
+ * Two fingers always mean the view: a pinch zooms around the fingers, a two-finger drag moves the
+ * sheet. A second finger arriving in the middle of a single-finger gesture drops that gesture
+ * without writing anything, so looking at the plan never edits it.
  *
  * Every grab is answered with expanding rings and a haptic tick: the finger covers the node or the
  * line, so without them the user cannot tell whether the grab happened. The preview is local state:
@@ -113,6 +105,8 @@ fun PlanCanvas(
     modifier: Modifier = Modifier,
     selectedEdgeId: String? = null,
     showGrid: Boolean = true,
+    viewport: PlanViewport = PlanViewport(),
+    onViewportChange: (PlanViewport) -> Unit = {},
 ) {
     val edgeColor = MaterialTheme.colorScheme.onSurface
     val nodeFill = MaterialTheme.colorScheme.surface
@@ -125,6 +119,22 @@ fun PlanCanvas(
     var draggedNode by remember { mutableStateOf<NodeDrag?>(null) }
     var draggedEdge by remember { mutableStateOf<EdgeDrag?>(null) }
     var rippleAnchor by remember { mutableStateOf<GrabRipple?>(null) }
+
+    // A grown sheet refits the view. Interpolating the sheet instead of the transform keeps nodes,
+    // grid and border consistent, and the drawing slides into the new sheet instead of jumping.
+    val fitWidth = remember(plan.id) { Animatable(plan.world.width.toFloat()) }
+    val fitHeight = remember(plan.id) { Animatable(plan.world.height.toFloat()) }
+    LaunchedEffect(plan.world.width) {
+        fitWidth.animateTo(plan.world.width.toFloat(), tween(FIT_REFIT_MILLIS))
+    }
+    LaunchedEffect(plan.world.height) {
+        fitHeight.animateTo(plan.world.height.toFloat(), tween(FIT_REFIT_MILLIS))
+    }
+
+    // The gesture handler is installed once per tool and plan, so it must read the current view and
+    // callback through state; captured values would stay at the composition that created it.
+    val liveViewport = rememberUpdatedState(viewport)
+    val liveOnViewportChange = rememberUpdatedState(onViewportChange)
 
     // The rings repeat while the grab lasts: a single burst is easy to miss when the finger starts
     // moving at once.
@@ -151,7 +161,10 @@ fun PlanCanvas(
         PlanTool.Draw -> Modifier.pointerInput(tool, plan) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false)
-                val transform = WorldTransform(size.width.toFloat(), size.height.toFloat(), CanvasPadding.toPx())
+                val canvas = Size(size.width.toFloat(), size.height.toFloat())
+                val world = PlanSize(fitWidth.value.toDouble(), fitHeight.value.toDouble())
+                val padding = SheetMargin.toPx()
+                val transform = planTransform(canvas, world, liveViewport.value, padding)
                 val magnetRadius = (MagnetRadius.toPx() / transform.scale).toDouble()
                 val start = PlanGeometry.snapStart(
                     nodes = plan.nodes,
@@ -164,9 +177,14 @@ fun PlanCanvas(
                 var dragging = false
                 var finished = false
                 var lastPosition = down.position
+                var pinch: PointerEvent? = null
                 try {
                     while (true) {
                         val event = awaitPointerEvent()
+                        if (event.changes.count { it.pressed } > 1) {
+                            pinch = event
+                            break
+                        }
                         val change = event.changes.firstOrNull { it.id == down.id } ?: break
                         lastPosition = change.position
                         if (change.changedToUpIgnoreConsumed()) {
@@ -183,6 +201,15 @@ fun PlanCanvas(
                                 raw = transform.toWorld(change.position),
                                 magnetRadius = magnetRadius,
                             )?.point
+                        }
+                    }
+                    pinch?.let { event ->
+                        // The second finger turns the gesture into a view gesture: the unfinished
+                        // segment is dropped, because the user is looking rather than drawing.
+                        gestureStart = null
+                        previewEnd = null
+                        trackViewGesture(event, liveViewport.value, canvas, world, padding) {
+                            liveOnViewportChange.value(it)
                         }
                     }
                 } finally {
@@ -205,7 +232,10 @@ fun PlanCanvas(
         PlanTool.Edit -> Modifier.pointerInput(tool, plan) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false)
-                val transform = WorldTransform(size.width.toFloat(), size.height.toFloat(), CanvasPadding.toPx())
+                val canvas = Size(size.width.toFloat(), size.height.toFloat())
+                val world = PlanSize(fitWidth.value.toDouble(), fitHeight.value.toDouble())
+                val padding = SheetMargin.toPx()
+                val transform = planTransform(canvas, world, liveViewport.value, padding)
                 val downWorld = transform.toWorld(down.position)
                 val grabbedNode = PlanGeometry.nearestNode(
                     nodes = plan.nodes,
@@ -233,6 +263,7 @@ fun PlanCanvas(
                 var edgeGrabbed = false
                 var nodeDrop: PlanPoint? = null
                 var edgeTarget: PlanPoint? = null
+                var pinch: PointerEvent? = null
 
                 if (grabbedNode != null) {
                     // The node is taken on the first down, so the feedback must not wait for
@@ -266,6 +297,10 @@ fun PlanCanvas(
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             continue
                         }
+                        if (event.changes.count { it.pressed } > 1) {
+                            pinch = event
+                            break
+                        }
                         val change = event.changes.firstOrNull { it.id == down.id } ?: break
                         lastEventTime = change.uptimeMillis
                         if (change.changedToUpIgnoreConsumed()) {
@@ -281,22 +316,23 @@ fun PlanCanvas(
                         if (!dragging && moved > viewConfiguration.touchSlop) dragging = true
                         if (!dragging) continue
                         change.consume()
-                        val world = transform.toWorld(change.position)
+                        val worldPoint = transform.toWorld(change.position)
                         if (grabbedNode != null) {
                             nodeDrop = PlanGeometry.snapNodeMove(
                                 nodes = plan.nodes,
                                 edges = plan.edges,
                                 node = grabbedNode,
-                                raw = world,
+                                raw = worldPoint,
                             )
                             draggedNode = nodeDrop?.let { NodeDrag(grabbedNode.id, it) }
                         } else if (edgeGrabbed && candidate != null) {
                             val offset = PlanGeometry.snapEdgeMove(
                                 nodes = plan.nodes,
                                 edges = plan.edges,
+                                world = plan.world,
                                 edge = candidate.edge,
                                 from = candidate.grabPoint,
-                                to = world,
+                                to = worldPoint,
                             )
                             // A refused position keeps the last allowed one: throwing the edge back
                             // to its start would look like a lost grab.
@@ -307,6 +343,16 @@ fun PlanCanvas(
                                 )
                                 draggedEdge = EdgeDrag(candidate.edge.id, offset)
                             }
+                        }
+                    }
+                    pinch?.let { event ->
+                        // A second finger cancels the grab: the preview disappears, nothing is
+                        // written, and the gesture becomes a view gesture.
+                        rippleAnchor = null
+                        draggedNode = null
+                        draggedEdge = null
+                        trackViewGesture(event, liveViewport.value, canvas, world, padding) {
+                            liveOnViewportChange.value(it)
                         }
                     }
                 } finally {
@@ -330,9 +376,16 @@ fun PlanCanvas(
         }
     }
 
-    Canvas(modifier = modifier.then(gesture)) {
-        val transform = WorldTransform(size.width, size.height, CanvasPadding.toPx())
-        if (showGrid) drawPlanGrid(transform, gridColor)
+    Canvas(modifier = modifier.clipToBounds().then(gesture)) {
+        val world = PlanSize(fitWidth.value.toDouble(), fitHeight.value.toDouble())
+        val transform = planTransform(size, world, viewport, SheetMargin.toPx())
+        drawRect(
+            color = gridColor.copy(alpha = 0.5f),
+            topLeft = transform.topLeft(),
+            size = transform.size(world),
+            style = Stroke(width = 1.dp.toPx()),
+        )
+        if (showGrid) drawPlanGrid(transform, world, gridColor)
 
         val nodesById = plan.nodes.associateBy { it.id }
         val nodeDrag = draggedNode
@@ -433,6 +486,37 @@ fun PlanCanvas(
     }
 }
 
+/**
+ * Drives a two-finger view gesture until every finger is up.
+ *
+ * [firstEvent] is the event that brought the second finger, so the first zoom step is not lost.
+ * The view is reported on every change, which keeps the canvas under the fingers while pinching.
+ */
+private suspend fun AwaitPointerEventScope.trackViewGesture(
+    firstEvent: PointerEvent,
+    start: PlanViewport,
+    canvas: Size,
+    world: PlanSize,
+    padding: Float,
+    onChange: (PlanViewport) -> Unit,
+) {
+    var event = firstEvent
+    var viewport = start
+    while (true) {
+        if (event.changes.none { it.pressed }) return
+        viewport = viewport.transformedBy(
+            canvas = canvas,
+            world = world,
+            padding = padding,
+            zoomChange = event.calculateZoom(),
+            panChange = event.calculatePan(),
+            focus = event.calculateCentroid(),
+        )
+        onChange(viewport)
+        event = awaitPointerEvent()
+    }
+}
+
 private data class NodeDrag(val nodeId: String, val point: PlanPoint)
 
 private data class EdgeDrag(val edgeId: String, val offset: PlanPoint)
@@ -476,11 +560,11 @@ fun PlanThumbnail(plan: PlanDocument, modifier: Modifier = Modifier) {
             .clip(MaterialTheme.shapes.small)
             .background(background),
     ) {
-        val transform = WorldTransform(size.width, size.height, CanvasPadding.toPx())
+        val transform = planTransform(size, plan.world, PlanViewport(), ThumbnailPadding.toPx())
         drawRect(
             color = borderColor,
-            topLeft = transform.worldTopLeft(),
-            size = transform.worldSize(),
+            topLeft = transform.topLeft(),
+            size = transform.size(plan.world),
             style = Stroke(width = 1.dp.toPx()),
         )
 
@@ -501,29 +585,55 @@ fun PlanThumbnail(plan: PlanDocument, modifier: Modifier = Modifier) {
     }
 }
 
-private fun DrawScope.drawPlanGrid(transform: WorldTransform, color: Color) {
-    val topLeft = transform.worldTopLeft()
-    val world = transform.worldSize()
+/**
+ * Grid of the sheet, limited to the visible part: a zoomed-in view must not draw thousands of lines
+ * outside the canvas. Minor lines are dropped when they would merge into a solid field.
+ */
+private fun DrawScope.drawPlanGrid(transform: WorldTransform, world: PlanSize, color: Color) {
+    val step = gridStep(transform.scale) ?: return
+    val topLeft = transform.topLeft()
+    val sheet = transform.size(world)
+    val scale = transform.scale
+    val strokeWidth = 1.dp.toPx()
 
-    for (x in 0..PlanWorld.WIDTH.toInt()) {
-        val px = topLeft.x + x * transform.scale
+    val firstX = max(0, floor((0f - topLeft.x) / scale).toInt())
+    val lastX = min(world.width.toInt(), ceil((size.width - topLeft.x) / scale).toInt())
+    for (x in alignedRange(firstX, lastX, step)) {
+        val px = topLeft.x + x * scale
         drawLine(
             color = color.copy(alpha = gridAlpha(x)),
             start = Offset(px, topLeft.y),
-            end = Offset(px, topLeft.y + world.height),
-            strokeWidth = 1.dp.toPx(),
+            end = Offset(px, topLeft.y + sheet.height),
+            strokeWidth = strokeWidth,
         )
     }
-    for (y in 0..PlanWorld.HEIGHT.toInt()) {
-        val py = topLeft.y + y * transform.scale
+
+    val firstY = max(0, floor((0f - topLeft.y) / scale).toInt())
+    val lastY = min(world.height.toInt(), ceil((size.height - topLeft.y) / scale).toInt())
+    for (y in alignedRange(firstY, lastY, step)) {
+        val py = topLeft.y + y * scale
         drawLine(
             color = color.copy(alpha = gridAlpha(y)),
             start = Offset(topLeft.x, py),
-            end = Offset(topLeft.x + world.width, py),
-            strokeWidth = 1.dp.toPx(),
+            end = Offset(topLeft.x + sheet.width, py),
+            strokeWidth = strokeWidth,
         )
     }
 }
+
+/** Grid step that keeps the lines readable at [scale] pixels per unit, or `null` when none does. */
+private fun DrawScope.gridStep(scale: Float): Int? {
+    val minimum = MinGridSpacing.toPx()
+    return when {
+        scale >= minimum -> 1
+        scale * MAJOR_GRID_STEP >= minimum -> MAJOR_GRID_STEP
+        else -> null
+    }
+}
+
+/** Indices of [first]..[last] that are multiples of [step]. */
+private fun alignedRange(first: Int, last: Int, step: Int): IntProgression =
+    (first - first % step)..last step step
 
 private fun gridAlpha(index: Int): Float =
     if (index % MAJOR_GRID_STEP == 0) 0.5f else 0.22f
