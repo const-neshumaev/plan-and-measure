@@ -74,7 +74,11 @@ fun AppRoot(
             onOpenConnect = { connectOpen = true },
         )
 
-        HomeSection.Plans -> PlansFlow(onExit = { section = null })
+        HomeSection.Plans -> PlansFlow(
+            labViewModel = viewModel,
+            onExit = { section = null },
+            onOpenConnect = { connectOpen = true },
+        )
 
         HomeSection.Projects -> ProjectsScreen(onBack = { section = null })
         HomeSection.Capture -> CaptureScreen(onBack = { section = null })

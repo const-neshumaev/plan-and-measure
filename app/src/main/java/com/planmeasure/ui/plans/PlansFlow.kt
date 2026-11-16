@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.planmeasure.LabViewModel
 import com.planmeasure.plans.PlansViewModel
 
 /**
@@ -14,7 +15,9 @@ import com.planmeasure.plans.PlansViewModel
  */
 @Composable
 fun PlansFlow(
+    labViewModel: LabViewModel,
     onExit: () -> Unit,
+    onOpenConnect: () -> Unit,
     viewModel: PlansViewModel = viewModel(),
 ) {
     val openPlan by viewModel.openPlan.collectAsState()
@@ -28,6 +31,8 @@ fun PlansFlow(
         PlanEditorScreen(
             plan = plan,
             viewModel = viewModel,
+            labViewModel = labViewModel,
+            onOpenConnect = onOpenConnect,
             onBack = viewModel::close,
         )
     }
