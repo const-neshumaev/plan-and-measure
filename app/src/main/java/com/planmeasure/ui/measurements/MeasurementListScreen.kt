@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -58,6 +57,7 @@ import com.planmeasure.measurements.Measurement
 import com.planmeasure.measurements.MeasurementList
 import com.planmeasure.measurements.MeasurementSource
 import com.planmeasure.measurements.MeasurementsViewModel
+import com.planmeasure.ui.components.ConnectBanner
 import com.planmeasure.ui.components.EmptyState
 import com.planmeasure.ui.components.ListNameDialog
 import java.util.Locale
@@ -349,50 +349,22 @@ private fun CaptureBanner(
             else -> R.string.measurement_capture_on_hint
         },
     )
+    val action = stringResource(
+        when {
+            !connected -> R.string.measurement_connect
+            paused -> R.string.measurement_capture_resume
+            else -> R.string.measurement_capture_pause
+        },
+    )
 
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = container,
+    ConnectBanner(
+        title = title,
+        hint = hint,
+        containerColor = container,
         contentColor = content,
-    ) {
-        Row(
-            modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_bluetooth),
-                contentDescription = null,
-                modifier = Modifier.size(22.dp),
-            )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                Text(text = title, style = MaterialTheme.typography.titleSmall)
-                Text(
-                    text = hint,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = content.copy(alpha = 0.8f),
-                )
-            }
-            TextButton(
-                onClick = if (connected) onTogglePause else onConnect,
-                colors = ButtonDefaults.textButtonColors(contentColor = content),
-            ) {
-                Text(
-                    stringResource(
-                        when {
-                            !connected -> R.string.measurement_connect
-                            paused -> R.string.measurement_capture_resume
-                            else -> R.string.measurement_capture_pause
-                        },
-                    ),
-                )
-            }
-        }
-    }
+        actionLabel = action,
+        onAction = if (connected) onTogglePause else onConnect,
+    )
 }
 
 @Composable

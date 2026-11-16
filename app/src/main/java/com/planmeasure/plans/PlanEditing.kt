@@ -7,6 +7,9 @@ package com.planmeasure.plans
  * otherwise it starts a new contour. Ending an edge on the first node of a contour closes it.
  * Editing moves a node, which drags every edge that touches it, slides one edge as a whole, or
  * removes one edge. Anything that leaves the sheet grows it, see [PlanGeometry.growWorldToFit].
+ *
+ * Dimensions are annotations of edges: attaching or removing one never changes coordinates
+ * (ADR 0007).
  */
 object PlanEditing {
 
@@ -160,6 +163,26 @@ object PlanEditing {
         document.copy(nodes = emptyList(), contours = emptyList())
 
     /**
+     * Attaches [dimension] to the edge [edgeId]; the geometry is left untouched.
+     *
+     * Returns the same instance when the edge is unknown or already carries this dimension, which
+     * keeps a repeated rangefinder reading out of the undo history.
+     */
+    fun setDimension(
+        document: PlanDocument,
+        edgeId: String,
+        dimension: PlanDimension,
+    ): PlanDocument = document.updateEdge(edgeId) { edge ->
+        if (edge.dimension == dimension) edge else edge.copy(dimension = dimension)
+    }
+
+    /** Removes the dimension of [edgeId], or returns the same instance when there is none. */
+    fun removeDimension(document: PlanDocument, edgeId: String): PlanDocument =
+        document.updateEdge(edgeId) { edge ->
+            if (edge.dimension == null) edge else edge.copy(dimension = null)
+        }
+
+    /**
      * Grows the sheet so that every node stays inside it; see [PlanGeometry.growWorldToFit].
      *
      * Edits keep the invariant themselves. This is the repair path for a document written while
@@ -186,6 +209,31 @@ object PlanEditing {
 
     private fun List<PlanNode>.plusIfAbsent(node: PlanNode): List<PlanNode> =
         if (any { it.id == node.id }) this else this + node
+
+    /**
+     * Rebuilds the document with [change] applied to one edge; unchanged instances are preserved so
+     * that callers can detect a no-op by identity.
+     */
+    private fun PlanDocument.updateEdge(
+        edgeId: String,
+        change: (PlanEdge) -> PlanEdge,
+    ): PlanDocument {
+        var changed = false
+        val contours = contours.map { contour ->
+            if (contour.edges.none { it.id == edgeId }) return@map contour
+            contour.copy(
+                edges = contour.edges.map { edge ->
+                    if (edge.id != edgeId) {
+                        edge
+                    } else {
+                        change(edge).also { updated -> if (updated !== edge) changed = true }
+                    }
+                },
+            )
+        }
+        if (!changed) return this
+        return copy(contours = contours)
+    }
 
     private fun PlanDocument.withoutUnusedNodes(): PlanDocument {
         val used = contours

@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -34,12 +35,18 @@ import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
+import com.planmeasure.measurements.LengthUnit
 import com.planmeasure.plans.PlanDocument
 import com.planmeasure.plans.PlanEdge
 import com.planmeasure.plans.PlanGeometry
 import com.planmeasure.plans.PlanPoint
 import com.planmeasure.plans.PlanSize
+import com.planmeasure.ui.measurements.labelRes
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
@@ -50,7 +57,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * Free space around the fitted sheet, deliberately generous: the finger has to be able to pull a
  * node past the border of a sheet that fills the screen, otherwise the sheet can never grow.
  */
-private val SheetMargin = 32.dp
+internal val SheetMargin = 32.dp
 
 /** Margins of the small preview in the list; the thumbnail has no room for [SheetMargin]. */
 private val ThumbnailPadding = 4.dp
@@ -71,8 +78,13 @@ private const val FIT_REFIT_MILLIS = 250
 /** Below this spacing the minor grid lines merge into a solid field and are not drawn. */
 private val MinGridSpacing = 6.dp
 
-/** What a drag on the canvas does: draw a new wall or reshape the existing plan. */
-enum class PlanTool { Draw, Edit }
+/**
+ * What a drag on the canvas does.
+ *
+ * [Draw] adds walls, [Edit] reshapes the finished plan, and [Dimensions] only attaches or changes
+ * a distance on a wall: a separate tool keeps the three gestures from competing for one touch.
+ */
+enum class PlanTool { Draw, Edit, Dimensions }
 
 /**
  * Drawing surface of one plan.
@@ -85,6 +97,9 @@ enum class PlanTool { Draw, Edit }
  * - a node, grabbed on the first down and moved with the grid snap;
  * - an edge, grabbed after a long press and slid as a whole, so its direction does not change;
  * - empty space, where a tap only clears the selection.
+ *
+ * In [PlanTool.Dimensions] a tap only selects a wall, because the same tap opens the dimension
+ * card; nothing is dragged, and two fingers still move the view.
  *
  * Two fingers always mean the view: a pinch zooms around the fingers, a two-finger drag moves the
  * sheet. A second finger arriving in the middle of a single-finger gesture drops that gesture
@@ -112,7 +127,20 @@ fun PlanCanvas(
     val nodeFill = MaterialTheme.colorScheme.surface
     val gridColor = MaterialTheme.colorScheme.outlineVariant
     val accentColor = MaterialTheme.colorScheme.primary
+    val labelFill = MaterialTheme.colorScheme.primaryContainer
+    val labelContent = MaterialTheme.colorScheme.onPrimaryContainer
     val haptic = LocalHapticFeedback.current
+
+    // Dimension text is laid out in the composition, not on every frame: measuring texts during
+    // a pinch would run on each pointer move.
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.labelMedium
+    val unitLabels = LengthUnit.entries.associateWith { stringResource(it.labelRes()) }
+    val labelLayouts = plan.edges.mapNotNull { edge ->
+        val dimension = edge.dimension ?: return@mapNotNull null
+        val text = "${dimension.valueText} ${unitLabels.getValue(dimension.unit)}"
+        edge.id to textMeasurer.measure(AnnotatedString(text), labelStyle)
+    }.toMap()
 
     var gestureStart by remember { mutableStateOf<PlanPoint?>(null) }
     var previewEnd by remember { mutableStateOf<PlanPoint?>(null) }
@@ -374,6 +402,57 @@ fun PlanCanvas(
                 }
             }
         }
+
+        // The selection is not a key for the same reason as in Edit: opening the dimension card
+        // changes it during the gesture.
+        PlanTool.Dimensions -> Modifier.pointerInput(tool, plan) {
+            awaitEachGesture {
+                // Touches on the dimension card are consumed by the card itself; the canvas must
+                // not select a wall behind it.
+                val down = awaitFirstDown(requireUnconsumed = true)
+                val canvas = Size(size.width.toFloat(), size.height.toFloat())
+                val world = PlanSize(fitWidth.value.toDouble(), fitHeight.value.toDouble())
+                val padding = SheetMargin.toPx()
+                val transform = planTransform(canvas, world, liveViewport.value, padding)
+                val candidate = PlanGeometry.nearestEdge(
+                    nodes = plan.nodes,
+                    contours = plan.contours,
+                    point = transform.toWorld(down.position),
+                    tolerance = (EdgeTapRadius.toPx() / transform.scale).toDouble(),
+                )
+
+                var dragged = false
+                var tapped = false
+                var pinch: PointerEvent? = null
+                try {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        if (event.changes.count { it.pressed } > 1) {
+                            pinch = event
+                            break
+                        }
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        if (change.changedToUpIgnoreConsumed()) {
+                            tapped = !dragged
+                            break
+                        }
+                        if ((change.position - down.position).getDistance() >
+                            viewConfiguration.touchSlop
+                        ) {
+                            dragged = true
+                        }
+                    }
+                    pinch?.let { event ->
+                        trackViewGesture(event, liveViewport.value, canvas, world, padding) {
+                            liveOnViewportChange.value(it)
+                        }
+                    }
+                } finally {
+                    // A tap on empty space clears the selection, which closes the card.
+                    if (tapped) onSelectEdge(candidate?.id)
+                }
+            }
+        }
     }
 
     Canvas(modifier = modifier.clipToBounds().then(gesture)) {
@@ -420,11 +499,30 @@ fun PlanCanvas(
                 val from = pointOf(edge.startNodeId) ?: return@forEach
                 val to = pointOf(edge.endNodeId) ?: return@forEach
                 val selected = edge.id == selectedEdgeId
+                val measured = edge.dimension != null
+                // A measured wall is thicker and takes the accent colour, so it separates from a
+                // plain wall at a glance; the selection is a glow on top of the same colour.
+                val width = when {
+                    selected -> LineWidth.toPx() * 2.4f
+                    measured -> LineWidth.toPx() * 1.8f
+                    else -> LineWidth.toPx()
+                }
+                val startPx = transform.toPx(from)
+                val endPx = transform.toPx(to)
+                if (selected) {
+                    drawLine(
+                        color = accentColor.copy(alpha = 0.20f),
+                        start = startPx,
+                        end = endPx,
+                        strokeWidth = LineWidth.toPx() * 5.5f,
+                        cap = StrokeCap.Round,
+                    )
+                }
                 drawLine(
-                    color = if (selected) accentColor else edgeColor,
-                    start = transform.toPx(from),
-                    end = transform.toPx(to),
-                    strokeWidth = if (selected) LineWidth.toPx() * 2f else LineWidth.toPx(),
+                    color = if (selected || measured) accentColor else edgeColor,
+                    start = startPx,
+                    end = endPx,
+                    strokeWidth = width,
                     cap = StrokeCap.Round,
                 )
             }
@@ -482,6 +580,43 @@ fun PlanCanvas(
                 }
             }
             if (center != null) drawGrabRipple(center, rippleProgress.value, accentColor)
+        }
+
+        if (labelLayouts.isNotEmpty()) {
+            val edgesById = plan.edges.associateBy { it.id }
+            val candidates = labelLayouts.mapNotNull { (edgeId, layout) ->
+                val edge = edgesById[edgeId] ?: return@mapNotNull null
+                val from = pointOf(edge.startNodeId) ?: return@mapNotNull null
+                val to = pointOf(edge.endNodeId) ?: return@mapNotNull null
+                DimensionLabelCandidate(
+                    edgeId = edgeId,
+                    start = transform.toPx(from),
+                    end = transform.toPx(to),
+                    size = Size(layout.size.width.toFloat(), layout.size.height.toFloat()),
+                )
+            }
+            val paddingX = 5.dp.toPx()
+            val paddingY = 2.dp.toPx()
+            placeDimensionLabels(
+                candidates = candidates,
+                selectedEdgeId = selectedEdgeId,
+                gap = 6.dp.toPx(),
+                spacing = 4.dp.toPx(),
+            ).forEach { label ->
+                val layout = labelLayouts[label.edgeId] ?: return@forEach
+                val height = layout.size.height + 2 * paddingY
+                drawRoundRect(
+                    color = labelFill,
+                    topLeft = Offset(label.topLeft.x - paddingX, label.topLeft.y - paddingY),
+                    size = Size(layout.size.width + 2 * paddingX, height),
+                    cornerRadius = CornerRadius(height / 2f),
+                )
+                drawText(
+                    textLayoutResult = layout,
+                    color = labelContent,
+                    topLeft = label.topLeft,
+                )
+            }
         }
     }
 }

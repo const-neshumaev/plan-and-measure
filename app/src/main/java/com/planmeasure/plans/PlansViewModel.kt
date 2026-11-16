@@ -5,6 +5,11 @@ import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.planmeasure.R
+import com.planmeasure.measurements.LengthUnit
+import com.planmeasure.measurements.MeasurementInput
+import com.planmeasure.measurements.MeasurementSource
+import com.planmeasure.measurements.toLengthUnit
+import com.planmeasure.protocol.DistanceFrame
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -24,6 +29,9 @@ import kotlinx.coroutines.sync.withLock
  *
  * Undo restores snapshots of the open document. The history is kept in memory only: it starts
  * empty when a plan is opened, so the undo button means "undo the last change of this session".
+ *
+ * Dimensions are stored on edges and never change coordinates: the sheet has no real-world scale,
+ * so a dimension annotates a wall instead of resizing it (ADR 0007).
  */
 class PlansViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -179,6 +187,36 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
         commit(updated.copy(updatedAt = System.currentTimeMillis()))
     }
 
+    /**
+     * Saves a manually entered dimension on [edgeId].
+     *
+     * The text is validated and canonicalized by [MeasurementInput]; blank or invalid input is
+     * ignored, so a card dismissed with a half-typed value keeps the previous dimension.
+     */
+    fun setEdgeDimension(edgeId: String, valueText: String, unit: LengthUnit) {
+        val normalized = MeasurementInput.normalize(valueText) ?: return
+        applyDimension(edgeId, normalized, unit, MeasurementSource.MANUAL)
+    }
+
+    /**
+     * Writes a decoded rangefinder reading into the dimension of [edgeId].
+     *
+     * The caller passes only the edge whose editor is open, so readings never land on a wall the
+     * user is not looking at. Frames with an unknown unit are dropped, like in measurement lists.
+     */
+    fun onRangefinderFrame(edgeId: String, frame: DistanceFrame) {
+        val unit = frame.unit.toLengthUnit() ?: return
+        applyDimension(edgeId, frame.normalizedText, unit, MeasurementSource.RANGFINDER)
+    }
+
+    /** Removes the dimension of [edgeId] and keeps the edge itself. */
+    fun removeEdgeDimension(edgeId: String) {
+        val current = _openPlan.value ?: return
+        val updated = PlanEditing.removeDimension(current, edgeId)
+        if (updated === current) return
+        commit(updated.copy(updatedAt = System.currentTimeMillis()))
+    }
+
     fun clearDrawing() {
         val current = _openPlan.value ?: return
         if (!current.hasDrawing) return
@@ -189,6 +227,39 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun newId(): String = UUID.randomUUID().toString()
+
+    /**
+     * Writes a dimension unless the edge already shows this value in this unit.
+     *
+     * Closing a card without edits, or pointing the device at one wall repeatedly, must not rewrite
+     * the dimension: every write is an undo step and a file update. The source is ignored on
+     * purpose, otherwise merely dismissing a card would turn a rangefinder reading into a manual
+     * one.
+     */
+    private fun applyDimension(
+        edgeId: String,
+        valueText: String,
+        unit: LengthUnit,
+        source: MeasurementSource,
+    ) {
+        val current = _openPlan.value ?: return
+        val edge = current.edges.firstOrNull { it.id == edgeId } ?: return
+        val existing = edge.dimension
+        if (existing != null && existing.valueText == valueText && existing.unit == unit) return
+        val now = System.currentTimeMillis()
+        val updated = PlanEditing.setDimension(
+            document = current,
+            edgeId = edgeId,
+            dimension = PlanDimension(
+                valueText = valueText,
+                unit = unit,
+                source = source,
+                updatedAt = now,
+            ),
+        )
+        if (updated === current) return
+        commit(updated.copy(updatedAt = now))
+    }
 
     private fun commit(plan: PlanDocument, undoable: Boolean = true) {
         val previous = _openPlan.value

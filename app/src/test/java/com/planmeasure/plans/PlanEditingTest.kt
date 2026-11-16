@@ -1,7 +1,10 @@
 package com.planmeasure.plans
 
+import com.planmeasure.measurements.LengthUnit
+import com.planmeasure.measurements.MeasurementSource
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -305,6 +308,106 @@ class PlanEditingTest {
 
         assertTrue(cleared.nodes.isEmpty())
         assertTrue(cleared.contours.isEmpty())
+    }
+
+    @Test
+    fun setDimensionAttachesToThePickedEdgeOnly() {
+        val plan = square()
+        val bottom = plan.contours.single().edges.first()
+        val dimension = PlanDimension(
+            valueText = "3.20",
+            unit = LengthUnit.METERS,
+            source = MeasurementSource.MANUAL,
+            updatedAt = 2_000L,
+        )
+
+        val updated = PlanEditing.setDimension(plan, bottom.id, dimension)
+
+        assertEquals(dimension, updated.edges.first { it.id == bottom.id }.dimension)
+        assertTrue(updated.edges.filterNot { it.id == bottom.id }.all { it.dimension == null })
+        assertEquals(plan.nodes, updated.nodes)
+        assertEquals(plan.contours.single().edges.map { it.id }, updated.edges.map { it.id })
+    }
+
+    @Test
+    fun setDimensionIgnoresUnknownEdgeAndRepeatedValue() {
+        val plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
+        val edge = plan.edges.single()
+        val dimension = PlanDimension(
+            valueText = "1.5",
+            unit = LengthUnit.FEET,
+            source = MeasurementSource.RANGFINDER,
+            updatedAt = 2_000L,
+        )
+        val annotated = PlanEditing.setDimension(plan, edge.id, dimension)
+
+        assertSame(plan, PlanEditing.setDimension(plan, "missing", dimension))
+        assertSame(annotated, PlanEditing.setDimension(annotated, edge.id, dimension))
+    }
+
+    @Test
+    fun removeDimensionKeepsTheEdge() {
+        val plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
+        val edge = plan.edges.single()
+        val annotated = PlanEditing.setDimension(
+            document = plan,
+            edgeId = edge.id,
+            dimension = PlanDimension(
+                valueText = "1.5",
+                unit = LengthUnit.METERS,
+                source = MeasurementSource.MANUAL,
+                updatedAt = 2_000L,
+            ),
+        )
+
+        val cleared = PlanEditing.removeDimension(annotated, edge.id)
+
+        assertEquals(1, cleared.edgeCount)
+        assertNull(cleared.edges.single().dimension)
+        assertSame(cleared, PlanEditing.removeDimension(cleared, edge.id))
+        assertSame(cleared, PlanEditing.removeDimension(cleared, "missing"))
+    }
+
+    @Test
+    fun dimensionSurvivesMovingItsEdge() {
+        val plan = square()
+        val bottom = plan.contours.single().edges.first()
+        val dimension = PlanDimension(
+            valueText = "3.20",
+            unit = LengthUnit.METERS,
+            source = MeasurementSource.MANUAL,
+            updatedAt = 2_000L,
+        )
+        val annotated = PlanEditing.setDimension(plan, bottom.id, dimension)
+
+        val moved = PlanEditing.moveEdge(
+            document = annotated,
+            edgeId = bottom.id,
+            from = PlanPoint(5.0, 2.0),
+            to = PlanPoint(5.4, 4.2),
+        )
+
+        assertEquals(dimension, moved.edges.first { it.id == bottom.id }.dimension)
+    }
+
+    @Test
+    fun removingAnEdgeRemovesItsDimension() {
+        val plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
+        val edge = plan.edges.single()
+        val annotated = PlanEditing.setDimension(
+            document = plan,
+            edgeId = edge.id,
+            dimension = PlanDimension(
+                valueText = "1.5",
+                unit = LengthUnit.METERS,
+                source = MeasurementSource.MANUAL,
+                updatedAt = 2_000L,
+            ),
+        )
+
+        val removed = PlanEditing.removeEdge(annotated, edge.id, ids)
+
+        assertTrue(removed.edges.none { it.id == edge.id })
     }
 
     private fun segment(

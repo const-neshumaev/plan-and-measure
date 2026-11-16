@@ -1,9 +1,11 @@
 package com.planmeasure.plans
 
+import com.planmeasure.measurements.LengthUnit
+import com.planmeasure.measurements.MeasurementSource
 import kotlinx.serialization.Serializable
 
 /** Current version of the on-disk plan document. Bump when the shape changes. */
-const val PLAN_SCHEMA_VERSION = 2
+const val PLAN_SCHEMA_VERSION = 3
 
 /**
  * Size of the drawing sheet in grid units; the sheet is a rectangle starting at the origin.
@@ -31,14 +33,30 @@ data class PlanNode(
 /**
  * One straight side of a contour.
  *
- * The edge is a separate entity with its own id because a measured distance will be attached to
- * it later; coordinates alone cannot identify the side the user picked.
+ * The edge is a separate entity with its own id because a measured distance can be attached to it;
+ * coordinates alone cannot identify the side the user picked.
  */
 @Serializable
 data class PlanEdge(
     val id: String,
     val startNodeId: String,
     val endNodeId: String,
+    val dimension: PlanDimension? = null,
+)
+
+/**
+ * A distance the user attached to one edge, see ADR 0007.
+ *
+ * The value is the decimal text that was typed or received, together with the unit it was entered
+ * in: the plan has no real-world scale, so a dimension annotates the drawing instead of changing
+ * its geometry, and converting units here would lose the digits the device showed.
+ */
+@Serializable
+data class PlanDimension(
+    val valueText: String,
+    val unit: LengthUnit,
+    val source: MeasurementSource,
+    val updatedAt: Long,
 )
 
 /**
