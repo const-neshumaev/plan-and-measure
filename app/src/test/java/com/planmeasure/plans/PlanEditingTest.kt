@@ -114,13 +114,35 @@ class PlanEditingTest {
     }
 
     @Test
-    fun moveNodeClampsToWorld() {
+    fun moveNodeGrowsSheetAroundIt() {
         val plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
         val node = plan.nodes.first { it.x == 8.0 }
 
-        val moved = PlanEditing.moveNode(plan, node.id, PlanPoint(99.0, 99.0))
+        val moved = PlanEditing.moveNode(plan, node.id, PlanPoint(21.0, 30.0))
 
-        assertEquals(PlanPoint(PlanWorld.WIDTH, PlanWorld.HEIGHT), positionOf(moved, node.id))
+        assertEquals(PlanPoint(21.0, 30.0), positionOf(moved, node.id))
+        assertEquals(PlanSize(width = 24.0, height = 32.0), moved.world)
+    }
+
+    @Test
+    fun moveNodeLeftOfOriginShiftsWholeDrawing() {
+        val plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
+        val left = plan.nodes.first { it.x == 2.0 }
+        val right = plan.nodes.first { it.x == 8.0 }
+
+        val moved = PlanEditing.moveNode(plan, left.id, PlanPoint(-1.0, 2.0))
+
+        assertEquals(PlanPoint(3.0, 2.0), positionOf(moved, left.id))
+        assertEquals(PlanPoint(12.0, 2.0), positionOf(moved, right.id))
+        assertEquals(PlanSize(), moved.world)
+    }
+
+    @Test
+    fun addsSegmentPastBorderGrowsSheet() {
+        val plan = segment(emptyPlan(), 18.0, 2.0, 25.0, 2.0)
+
+        assertEquals(PlanSize(width = 28.0, height = 28.0), plan.world)
+        assertEquals(2, plan.nodes.size)
     }
 
     @Test
@@ -178,14 +200,15 @@ class PlanEditingTest {
     }
 
     @Test
-    fun moveEdgeClampsToWorld() {
+    fun moveEdgeClampsToSheet() {
         val plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
         val edge = plan.edges.single()
 
         val moved = PlanEditing.moveEdge(plan, edge.id, PlanPoint(5.0, 2.0), PlanPoint(99.0, 2.0))
 
         assertEquals(PlanPoint(14.0, 2.0), positionOf(moved, edge.startNodeId))
-        assertEquals(PlanPoint(PlanWorld.WIDTH, 2.0), positionOf(moved, edge.endNodeId))
+        assertEquals(PlanPoint(PlanWorld.DEFAULT_WIDTH, 2.0), positionOf(moved, edge.endNodeId))
+        assertEquals(PlanSize(), moved.world)
     }
 
     @Test
@@ -256,6 +279,23 @@ class PlanEditingTest {
         val plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
 
         assertSame(plan, PlanEditing.removeEdge(plan, "missing", ids))
+    }
+
+    @Test
+    fun fitsSheetToDrawingWrittenOutsideIt() {
+        val plan = PlanDocument(
+            id = PLAN_ID,
+            name = "Corridor",
+            createdAt = 1_000L,
+            world = PlanSize(width = 20.0, height = 28.0),
+            nodes = listOf(PlanNode("a", 25.0, 300.0)),
+        )
+
+        val fitted = PlanEditing.fitWorldToDrawing(plan)
+
+        assertEquals(PlanSize(width = 28.0, height = 300.0), fitted.world)
+        assertEquals(PlanPoint(25.0, 300.0), positionOf(fitted, "a"))
+        assertSame(fitted, PlanEditing.fitWorldToDrawing(fitted))
     }
 
     @Test

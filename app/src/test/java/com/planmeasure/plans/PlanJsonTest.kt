@@ -13,6 +13,7 @@ class PlanJsonTest {
             name = "Living room",
             createdAt = 1_000L,
             updatedAt = 2_000L,
+            world = PlanSize(width = 24.0, height = 32.0),
             nodes = listOf(
                 PlanNode("node-a", 2.0, 2.0),
                 PlanNode("node-b", 8.0, 2.0),
@@ -46,8 +47,28 @@ class PlanJsonTest {
         val plan = PlanJson.decode(text)
 
         assertEquals(PLAN_SCHEMA_VERSION, plan.schemaVersion)
+        assertEquals(PlanSize(), plan.world)
         assertTrue(plan.nodes.isEmpty())
         assertTrue(plan.contours.isEmpty())
         assertEquals(1L, plan.updatedAt)
+    }
+
+    @Test
+    fun keepsTheSheetOfADocumentWrittenBeforeSheetsWereStored() {
+        val text = """
+            {
+              "schemaVersion": 1,
+              "id": "00000000-0000-0000-0000-000000000003",
+              "name": "Hall",
+              "createdAt": 1,
+              "nodes": [{"id": "a", "x": 21.0, "y": 4.0}]
+            }
+        """.trimIndent()
+
+        val plan = PlanJson.decode(text)
+
+        // A version 1 document had a fixed sheet, so its coordinates must be read as is.
+        assertEquals(PlanSize(), plan.world)
+        assertEquals(PlanPoint(21.0, 4.0), plan.nodes.single().let { PlanPoint(it.x, it.y) })
     }
 }

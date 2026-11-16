@@ -6,15 +6,16 @@ package com.planmeasure.plans
  * One drawing gesture adds one edge. The edge continues the contour that ends at its start node,
  * otherwise it starts a new contour. Ending an edge on the first node of a contour closes it.
  * Editing moves a node, which drags every edge that touches it, slides one edge as a whole, or
- * removes one edge.
+ * removes one edge. Anything that leaves the sheet grows it, see [PlanGeometry.growWorldToFit].
  */
 object PlanEditing {
 
     /**
      * Adds a segment from [from] to [to] snapped by [PlanGeometry].
      *
-     * [newId] is called for every node, edge and contour that has to be created. Returns the
-     * same instance when the gesture produces no usable segment.
+     * [newId] is called for every node, edge and contour that has to be created. A segment pulled
+     * past the border grows the sheet. Returns the same instance when the gesture produces no
+     * usable segment.
      */
     fun addSegment(
         document: PlanDocument,
@@ -50,14 +51,15 @@ object PlanEditing {
             document.contours + PlanContour(id = newId(), edges = listOf(edge))
         }
 
-        return document.copy(nodes = nodes, contours = contours)
+        return document.copy(nodes = nodes, contours = contours).withWorldFittingDrawing()
     }
 
     /**
      * Moves [nodeId] to [to], snapped to the grid by [PlanGeometry.snapNodeMove].
      *
-     * A node is shared by every edge that touches it, so the whole shape follows it. Returns the
-     * same instance when the node is unknown or the target would collapse an incident edge.
+     * A node is shared by every edge that touches it, so the whole shape follows it. A node pulled
+     * past the border grows the sheet. Returns the same instance when the node is unknown or the
+     * target would collapse an incident edge.
      */
     fun moveNode(document: PlanDocument, nodeId: String, to: PlanPoint): PlanDocument {
         val node = document.nodes.firstOrNull { it.id == nodeId } ?: return document
@@ -68,7 +70,7 @@ object PlanEditing {
             nodes = document.nodes.map { current ->
                 if (current.id == nodeId) current.copy(x = target.x, y = target.y) else current
             },
-        )
+        ).withWorldFittingDrawing()
     }
 
     /**
@@ -88,8 +90,14 @@ object PlanEditing {
         to: PlanPoint,
     ): PlanDocument {
         val edge = document.edges.firstOrNull { it.id == edgeId } ?: return document
-        val offset = PlanGeometry.snapEdgeMove(document.nodes, document.edges, edge, from, to)
-            ?: return document
+        val offset = PlanGeometry.snapEdgeMove(
+            nodes = document.nodes,
+            edges = document.edges,
+            world = document.world,
+            edge = edge,
+            from = from,
+            to = to,
+        ) ?: return document
         if (offset.x == 0.0 && offset.y == 0.0) return document
         val moved = setOf(edge.startNodeId, edge.endNodeId)
         return document.copy(
@@ -150,6 +158,31 @@ object PlanEditing {
 
     fun clearDrawing(document: PlanDocument): PlanDocument =
         document.copy(nodes = emptyList(), contours = emptyList())
+
+    /**
+     * Grows the sheet so that every node stays inside it; see [PlanGeometry.growWorldToFit].
+     *
+     * Edits keep the invariant themselves. This is the repair path for a document written while
+     * the sheet size was still capped, which left nodes outside the sheet. Returns the same
+     * instance when the drawing already fits.
+     */
+    fun fitWorldToDrawing(document: PlanDocument): PlanDocument =
+        document.withWorldFittingDrawing()
+
+    /**
+     * Grows the sheet so that every node stays inside it, shifting the drawing when a node went
+     * left of or above the origin. Returns the same instance when the drawing already fits.
+     */
+    private fun PlanDocument.withWorldFittingDrawing(): PlanDocument {
+        val points = nodes.map { PlanPoint(it.x, it.y) }
+        val growth = PlanGeometry.growWorldToFit(world, points) ?: return this
+        val moved = if (growth.shift.x == 0.0 && growth.shift.y == 0.0) {
+            nodes
+        } else {
+            nodes.map { it.copy(x = it.x + growth.shift.x, y = it.y + growth.shift.y) }
+        }
+        return copy(world = growth.size, nodes = moved)
+    }
 
     private fun List<PlanNode>.plusIfAbsent(node: PlanNode): List<PlanNode> =
         if (any { it.id == node.id }) this else this + node

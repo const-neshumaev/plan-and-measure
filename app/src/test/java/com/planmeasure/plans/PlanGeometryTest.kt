@@ -13,12 +13,15 @@ class PlanGeometryTest {
     }
 
     @Test
-    fun clampsGridSnapToWorld() {
+    fun clampsGridSnapToCoordinateLimit() {
         assertEquals(
-            PlanPoint(PlanWorld.WIDTH, PlanWorld.HEIGHT),
-            PlanGeometry.snapToGrid(PlanPoint(99.0, 99.0)),
+            PlanPoint(PlanWorld.MAX_COORDINATE, PlanWorld.MAX_COORDINATE),
+            PlanGeometry.snapToGrid(PlanPoint(99_999.0, 99_999.0)),
         )
-        assertEquals(PlanPoint(0.0, 0.0), PlanGeometry.snapToGrid(PlanPoint(-4.0, -1.0)))
+        assertEquals(
+            PlanPoint(-PlanWorld.MAX_COORDINATE, -PlanWorld.MAX_COORDINATE),
+            PlanGeometry.snapToGrid(PlanPoint(-99_999.0, -99_999.0)),
+        )
     }
 
     @Test
@@ -45,14 +48,14 @@ class PlanGeometryTest {
     }
 
     @Test
-    fun clampsDiagonalSegmentToWorldEdge() {
+    fun extendsDiagonalSegmentPastSheet() {
         val snap = PlanGeometry.snapSegment(
             nodes = emptyList(),
             startPoint = PlanPoint(18.0, 2.0),
             raw = PlanPoint(30.0, 14.0),
             magnetRadius = 0.5,
         )
-        assertEquals(PlanPoint(PlanWorld.WIDTH, 4.0), snap?.point)
+        assertEquals(PlanPoint(30.0, 14.0), snap?.point)
     }
 
     @Test
@@ -111,26 +114,27 @@ class PlanGeometryTest {
     }
 
     @Test
-    fun clampsSegmentToWorldEdge() {
+    fun extendsSegmentPastSheet() {
         val snap = PlanGeometry.snapSegment(
             nodes = emptyList(),
             startPoint = PlanPoint(18.0, 3.0),
             raw = PlanPoint(30.0, 3.0),
             magnetRadius = 0.5,
         )
-        assertEquals(PlanPoint(PlanWorld.WIDTH, 3.0), snap?.point)
+        assertEquals(PlanPoint(30.0, 3.0), snap?.point)
     }
 
     @Test
-    fun snapsMovedNodeToGridAndWorld() {
+    fun snapsMovedNodeToGridWithoutSheetClamp() {
         val node = PlanNode("n", 2.0, 2.0)
 
         assertEquals(
             PlanPoint(5.0, 4.0),
             PlanGeometry.snapNodeMove(listOf(node), emptyList(), node, PlanPoint(4.7, 3.6)),
         )
+        // Pulling the node past the border grows the sheet instead of refusing the move.
         assertEquals(
-            PlanPoint(0.0, PlanWorld.HEIGHT),
+            PlanPoint(-3.0, 99.0),
             PlanGeometry.snapNodeMove(listOf(node), emptyList(), node, PlanPoint(-3.0, 99.0)),
         )
     }
@@ -160,6 +164,7 @@ class PlanGeometryTest {
             PlanGeometry.snapEdgeMove(
                 nodes = nodes,
                 edges = listOf(edge),
+                world = PlanSize(),
                 edge = edge,
                 from = PlanPoint(5.0, 2.0),
                 to = PlanPoint(5.4, 5.2),
@@ -177,6 +182,7 @@ class PlanGeometryTest {
             PlanGeometry.snapEdgeMove(
                 nodes = nodes,
                 edges = listOf(edge),
+                world = PlanSize(),
                 edge = edge,
                 from = PlanPoint(5.0, 2.0),
                 to = PlanPoint(-5.0, 2.0),
@@ -198,6 +204,7 @@ class PlanGeometryTest {
             PlanGeometry.snapEdgeMove(
                 nodes = nodes,
                 edges = listOf(moved, neighbour),
+                world = PlanSize(),
                 edge = moved,
                 from = PlanPoint(5.0, 2.0),
                 to = PlanPoint(5.0, 6.0),
@@ -256,6 +263,43 @@ class PlanGeometryTest {
         val nodes = listOf(PlanNode("a", 1.0, 1.0), PlanNode("b", 2.0, 1.0))
         assertEquals("b", PlanGeometry.nearestNode(nodes, PlanPoint(1.8, 1.0), 1.0)?.id)
         assertNull(PlanGeometry.nearestNode(nodes, PlanPoint(5.0, 5.0), 1.0))
+    }
+
+    @Test
+    fun growsSheetToFitNodePastBorder() {
+        val growth = PlanGeometry.growWorldToFit(PlanSize(), listOf(PlanPoint(21.0, 4.0)))
+
+        assertEquals(PlanSize(width = 24.0, height = 28.0), growth?.size)
+        assertEquals(PlanPoint(0.0, 0.0), growth?.shift)
+    }
+
+    @Test
+    fun doesNotGrowSheetWhenDrawingFits() {
+        assertNull(PlanGeometry.growWorldToFit(PlanSize(), listOf(PlanPoint(20.0, 28.0))))
+        assertNull(PlanGeometry.growWorldToFit(PlanSize(), emptyList()))
+    }
+
+    @Test
+    fun shiftsDrawingBackWhenNodeGoesLeftOfOrigin() {
+        val growth = PlanGeometry.growWorldToFit(
+            world = PlanSize(),
+            points = listOf(PlanPoint(-1.0, 2.0), PlanPoint(19.0, 2.0)),
+        )
+
+        // The drawing moves right by a whole step, and the sheet grows to keep the far node.
+        assertEquals(PlanPoint(4.0, 0.0), growth?.shift)
+        assertEquals(PlanSize(width = 24.0, height = 28.0), growth?.size)
+    }
+
+    @Test
+    fun growsSheetWithoutAnUpperBound() {
+        val growth = PlanGeometry.growWorldToFit(
+            world = PlanSize(),
+            points = listOf(PlanPoint(88.0, 300.0)),
+        )
+
+        // The sheet has to contain the node that caused the growth; a cap here left it outside.
+        assertEquals(PlanSize(width = 88.0, height = 300.0), growth?.size)
     }
 
     @Test

@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -57,6 +58,10 @@ fun PlanEditorScreen(
     var showGrid by rememberSaveable { mutableStateOf(true) }
     var tool by rememberSaveable { mutableStateOf(PlanTool.Draw) }
     var selectedEdgeId by rememberSaveable { mutableStateOf<String?>(null) }
+    // The view starts fitted for every plan and is not part of the document, see ADR 0006.
+    var viewport by rememberSaveable(plan.id, stateSaver = PlanViewportSaver) {
+        mutableStateOf(PlanViewport())
+    }
     var menuOpen by remember { mutableStateOf(false) }
     var showRename by rememberSaveable { mutableStateOf(false) }
     var showClear by rememberSaveable { mutableStateOf(false) }
@@ -126,6 +131,14 @@ fun PlanEditorScreen(
                             },
                         )
                     }
+                    if (!viewport.isFitted) {
+                        IconButton(onClick = { viewport = PlanViewport() }) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_fit_screen),
+                                contentDescription = stringResource(R.string.plan_fit_screen),
+                            )
+                        }
+                    }
                     Box {
                         IconButton(onClick = { menuOpen = true }) {
                             Icon(
@@ -184,39 +197,40 @@ fun PlanEditorScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-        Box(
+        // The tools live under the drawing instead of over it: a sheet that runs under the buttons
+        // hides its own border, and that border is exactly what the finger has to reach to grow it.
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            PlanCanvas(
-                plan = plan,
-                tool = tool,
-                onSegment = viewModel::addSegment,
-                onMoveNode = viewModel::moveNode,
-                onMoveEdge = viewModel::moveEdge,
-                onSelectEdge = { selectedEdgeId = it },
-                selectedEdgeId = selectedEdge?.id,
-                showGrid = showGrid,
-                modifier = Modifier.fillMaxSize(),
-            )
-            if (!plan.hasDrawing) {
-                Text(
-                    text = stringResource(R.string.plan_draw_hint),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(horizontal = 40.dp),
+            Box(modifier = Modifier.weight(1f)) {
+                PlanCanvas(
+                    plan = plan,
+                    tool = tool,
+                    onSegment = viewModel::addSegment,
+                    onMoveNode = viewModel::moveNode,
+                    onMoveEdge = viewModel::moveEdge,
+                    onSelectEdge = { selectedEdgeId = it },
+                    selectedEdgeId = selectedEdge?.id,
+                    showGrid = showGrid,
+                    viewport = viewport,
+                    onViewportChange = { viewport = it },
+                    modifier = Modifier.fillMaxSize(),
                 )
-            }
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
+                if (!plan.hasDrawing) {
+                    Text(
+                        text = stringResource(R.string.plan_draw_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(horizontal = 40.dp),
+                    )
+                }
+                // The hint floats over the sheet on purpose: giving it its own row would change
+                // the canvas height when the tool changes, and the fitted sheet would jump.
                 if (tool == PlanTool.Edit && plan.hasDrawing) {
                     Text(
                         text = stringResource(R.string.plan_edit_hint),
@@ -224,7 +238,8 @@ fun PlanEditorScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                         modifier = Modifier
-                            .padding(bottom = 8.dp)
+                            .align(Alignment.BottomCenter)
+                            .padding(8.dp)
                             .background(
                                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
                                 shape = MaterialTheme.shapes.small,
@@ -232,6 +247,13 @@ fun PlanEditorScreen(
                             .padding(horizontal = 10.dp, vertical = 4.dp),
                     )
                 }
+            }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
                 SingleChoiceSegmentedButtonRow {
                     PlanTool.entries.forEachIndexed { index, value ->
                         SegmentedButton(
