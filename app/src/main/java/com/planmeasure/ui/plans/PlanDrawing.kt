@@ -40,13 +40,13 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
-import com.planmeasure.measurements.LengthUnit
 import com.planmeasure.plans.PlanDocument
 import com.planmeasure.plans.PlanEdge
 import com.planmeasure.plans.PlanGeometry
 import com.planmeasure.plans.PlanPoint
 import com.planmeasure.plans.PlanSize
-import com.planmeasure.ui.measurements.labelRes
+import com.planmeasure.ui.components.labelRes
+import com.planmeasure.units.Length
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
@@ -114,7 +114,7 @@ fun PlanCanvas(
     plan: PlanDocument,
     tool: PlanTool,
     onSegment: (from: PlanPoint, to: PlanPoint, magnetRadius: Double) -> Unit,
-    onMoveNode: (nodeId: String, to: PlanPoint) -> Unit,
+    onMoveNode: (nodeId: String, to: PlanPoint, magnetRadius: Double) -> Unit,
     onMoveEdge: (edgeId: String, from: PlanPoint, to: PlanPoint) -> Unit,
     onSelectEdge: (edgeId: String?) -> Unit,
     modifier: Modifier = Modifier,
@@ -135,10 +135,10 @@ fun PlanCanvas(
     // a pinch would run on each pointer move.
     val textMeasurer = rememberTextMeasurer()
     val labelStyle = MaterialTheme.typography.labelMedium
-    val unitLabels = LengthUnit.entries.associateWith { stringResource(it.labelRes()) }
+    val unitLabel = stringResource(plan.unit.labelRes())
     val labelLayouts = plan.edges.mapNotNull { edge ->
         val dimension = edge.dimension ?: return@mapNotNull null
-        val text = "${dimension.valueText} ${unitLabels.getValue(dimension.unit)}"
+        val text = "${Length.format(dimension.valueMm, plan.unit)} $unitLabel"
         edge.id to textMeasurer.measure(AnnotatedString(text), labelStyle)
     }.toMap()
 
@@ -265,6 +265,7 @@ fun PlanCanvas(
                 val padding = SheetMargin.toPx()
                 val transform = planTransform(canvas, world, liveViewport.value, padding)
                 val downWorld = transform.toWorld(down.position)
+                val magnetRadius = (MagnetRadius.toPx() / transform.scale).toDouble()
                 val grabbedNode = PlanGeometry.nearestNode(
                     nodes = plan.nodes,
                     point = downWorld,
@@ -290,6 +291,7 @@ fun PlanCanvas(
                 var finished = false
                 var edgeGrabbed = false
                 var nodeDrop: PlanPoint? = null
+                var nodeWorld: PlanPoint? = null
                 var edgeTarget: PlanPoint? = null
                 var pinch: PointerEvent? = null
 
@@ -346,11 +348,13 @@ fun PlanCanvas(
                         change.consume()
                         val worldPoint = transform.toWorld(change.position)
                         if (grabbedNode != null) {
+                            nodeWorld = worldPoint
                             nodeDrop = PlanGeometry.snapNodeMove(
                                 nodes = plan.nodes,
                                 edges = plan.edges,
                                 node = grabbedNode,
                                 raw = worldPoint,
+                                magnetRadius = magnetRadius,
                             )
                             draggedNode = nodeDrop?.let { NodeDrag(grabbedNode.id, it) }
                         } else if (edgeGrabbed && candidate != null) {
@@ -389,7 +393,8 @@ fun PlanCanvas(
                     rippleAnchor = null
                     if (finished) {
                         when {
-                            grabbedNode != null && nodeDrop != null -> onMoveNode(grabbedNode.id, nodeDrop)
+                            grabbedNode != null && nodeDrop != null && nodeWorld != null ->
+                                onMoveNode(grabbedNode.id, nodeWorld, magnetRadius)
                             // A tap selects the edge under it; a tap on empty space clears it.
                             candidate != null && !edgeGrabbed && !dragging ->
                                 onSelectEdge(candidate.edge.id)

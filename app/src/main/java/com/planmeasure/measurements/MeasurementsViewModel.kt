@@ -6,6 +6,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.planmeasure.R
 import com.planmeasure.protocol.DistanceFrame
+import com.planmeasure.settings.LastLengthUnitStorage
+import com.planmeasure.units.Length
+import com.planmeasure.units.LengthInput
+import com.planmeasure.units.LengthUnit
+import com.planmeasure.units.toCanonicalMillimeters
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -22,10 +27,16 @@ import kotlinx.coroutines.sync.withLock
  * This ViewModel knows nothing about GATT: it accepts already decoded frames from the screen
  * that is currently recording. All writes are queued through one [Mutex] so that a burst of
  * measurements cannot reorder or overwrite a recent edit.
+ *
+ * Every measurement belongs to one list with a single unit (ADR 0009): input is validated in that
+ * unit, device readings and stored values are canonical millimeters, and changing the unit only
+ * changes how the same values are shown.
  */
 class MeasurementsViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repository = JsonMeasurementListRepository(File(app.filesDir, DATA_DIRECTORY))
+
+    private val lastUnit = LastLengthUnitStorage(app)
 
     private val persistence = Mutex()
 
@@ -36,10 +47,6 @@ class MeasurementsViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _capturePaused = MutableStateFlow(false)
     val capturePaused = _capturePaused.asStateFlow()
-
-    /** Default unit for manual entry during this app session; not persisted yet. */
-    private val _inputUnit = MutableStateFlow(LengthUnit.METERS)
-    val inputUnit = _inputUnit.asStateFlow()
 
     private val _loading = MutableStateFlow(true)
     val loading = _loading.asStateFlow()
@@ -78,7 +85,7 @@ class MeasurementsViewModel(app: Application) : AndroidViewModel(app) {
         if (name.isBlank()) return
         viewModelScope.launch {
             persistence.withLock {
-                runCatching { repository.create(name) }
+                runCatching { repository.create(name, lastUnit.load()) }
                     .onSuccess {
                         _capturePaused.value = false
                         _openList.value = it
@@ -125,13 +132,14 @@ class MeasurementsViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun addMeasurement(valueText: String, unit: LengthUnit, comment: String) {
-        val normalized = MeasurementInput.normalize(valueText) ?: return
+    /** Adds a manually entered value of the open list; the unit is the list's own. */
+    fun addMeasurement(valueText: String, comment: String) {
+        val current = _openList.value ?: return
+        val valueMm = LengthInput.normalize(valueText, current.unit) ?: return
         append(
             Measurement(
                 id = UUID.randomUUID().toString(),
-                valueText = normalized,
-                unit = unit,
+                valueMm = valueMm,
                 comment = comment.trim(),
                 createdAt = System.currentTimeMillis(),
                 source = MeasurementSource.MANUAL,
@@ -139,19 +147,24 @@ class MeasurementsViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
-    fun updateMeasurement(id: String, valueText: String, unit: LengthUnit, comment: String) {
-        val normalized = MeasurementInput.normalize(valueText) ?: return
+    fun updateMeasurement(id: String, valueText: String, comment: String) {
         val current = _openList.value ?: return
-        if (current.measurements.none { it.id == id }) return
-        val updated = current.measurements.map { measurement ->
-            if (measurement.id == id) {
-                measurement.copy(
-                    valueText = normalized,
-                    unit = unit,
+        val measurement = current.measurements.firstOrNull { it.id == id } ?: return
+        // An untouched field shows the rounded display form of the exact stored value. Saving it
+        // back must not replace the exact value with its rounded form.
+        val valueMm = if (valueText.trim() == Length.format(measurement.valueMm, current.unit)) {
+            measurement.valueMm
+        } else {
+            LengthInput.normalize(valueText, current.unit) ?: return
+        }
+        val updated = current.measurements.map { existing ->
+            if (existing.id == id) {
+                existing.copy(
+                    valueMm = valueMm,
                     comment = comment.trim(),
                 )
             } else {
-                measurement
+                existing
             }
         }
         commit(current.copy(updatedAt = System.currentTimeMillis(), measurements = updated))
@@ -185,11 +198,10 @@ class MeasurementsViewModel(app: Application) : AndroidViewModel(app) {
     fun onRangefinderFrame(frame: DistanceFrame) {
         if (_capturePaused.value) return
         val current = _openList.value ?: return
-        val unit = frame.unit.toLengthUnit() ?: return
+        val valueMm = frame.toCanonicalMillimeters() ?: return
         val measurement = Measurement(
             id = UUID.randomUUID().toString(),
-            valueText = frame.normalizedText,
-            unit = unit,
+            valueMm = valueMm,
             createdAt = System.currentTimeMillis(),
             source = MeasurementSource.RANGFINDER,
         )
@@ -206,8 +218,12 @@ class MeasurementsViewModel(app: Application) : AndroidViewModel(app) {
         _capturePaused.value = paused
     }
 
-    fun setInputUnit(unit: LengthUnit) {
-        _inputUnit.value = unit
+    /** Changes the unit of the open list; the stored millimeters are not touched. */
+    fun setUnit(unit: LengthUnit) {
+        lastUnit.save(unit)
+        val current = _openList.value ?: return
+        if (current.unit == unit) return
+        commit(current.copy(unit = unit, updatedAt = System.currentTimeMillis()))
     }
 
     private fun append(measurement: Measurement) {

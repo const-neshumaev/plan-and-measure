@@ -1,5 +1,6 @@
 package com.planmeasure.measurements
 
+import com.planmeasure.units.LengthUnit
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -19,7 +20,7 @@ interface MeasurementListRepository {
     /** Returns the full document, or `null` if it is missing or unreadable. */
     suspend fun load(id: String): MeasurementList?
 
-    suspend fun create(name: String): MeasurementList
+    suspend fun create(name: String, unit: LengthUnit = LengthUnit.METERS): MeasurementList
 
     /** Writes the document and refreshes its summary. */
     suspend fun update(list: MeasurementList)

@@ -84,10 +84,16 @@ object PlanGeometry {
     )
 
     /** Nearest node to [point] within [radius] world units, or `null`. */
-    fun nearestNode(nodes: List<PlanNode>, point: PlanPoint, radius: Double): PlanNode? {
+    fun nearestNode(
+        nodes: List<PlanNode>,
+        point: PlanPoint,
+        radius: Double,
+        excludeId: String? = null,
+    ): PlanNode? {
         var best: PlanNode? = null
         var bestDistance = radius
         nodes.forEach { node ->
+            if (node.id == excludeId) return@forEach
             val distance = hypot(node.x - point.x, node.y - point.y)
             if (distance <= bestDistance) {
                 best = node
@@ -96,6 +102,12 @@ object PlanGeometry {
         }
         return best
     }
+
+    /** Existing node standing exactly on [point], ignoring [excludeId]. */
+    fun nodeAt(nodes: List<PlanNode>, point: PlanPoint, excludeId: String? = null): PlanNode? =
+        nodes.firstOrNull { node ->
+            node.id != excludeId && node.x == point.x && node.y == point.y
+        }
 
     /**
      * End of a segment started at [startPoint].
@@ -125,19 +137,26 @@ object PlanGeometry {
     /**
      * Target position of a dragged node, or `null` when the move is not allowed.
      *
-     * The node stays on the grid even when moved by hand: a plan that mixes exact grid crossings
-     * with finger coordinates of unknown precision cannot be read back reliably. A move that
-     * would collapse an incident edge into a point is refused, because the edge would lose its
-     * direction and could never be selected again. The sheet is not checked here: pulling a node
-     * past its border grows the sheet in [PlanEditing], which also keeps the drawing inside.
+     * A finger near another node lands exactly on it, just like the end of a drawn segment, so
+     * vertices can be joined in Edit as well as in Draw. Otherwise the node stays on the grid even
+     * when moved by hand: a plan that mixes exact grid crossings with finger coordinates of unknown
+     * precision cannot be read back reliably. A move that would collapse an incident edge into a
+     * point is refused, because the edge would lose its direction and could never be selected
+     * again. The sheet is not checked here: pulling a node past its border grows the sheet in
+     * [PlanEditing], which also keeps the drawing inside.
      */
     fun snapNodeMove(
         nodes: List<PlanNode>,
         edges: List<PlanEdge>,
         node: PlanNode,
         raw: PlanPoint,
+        magnetRadius: Double = 0.0,
     ): PlanPoint? {
-        val target = snapToGrid(raw)
+        val magnet = nearestNode(nodes, raw, magnetRadius, excludeId = node.id)
+        val target = magnet?.let { PlanPoint(it.x, it.y) } ?: snapToGrid(raw)
+        val targetNode = magnet ?: nodeAt(nodes, target, excludeId = node.id)
+        if (targetNode != null && !canWeldNodes(edges, node.id, targetNode.id)) return null
+
         val collapses = edges.any { edge ->
             val otherId = when (node.id) {
                 edge.startNodeId -> edge.endNodeId
@@ -148,6 +167,28 @@ object PlanGeometry {
             distance(PlanPoint(other.x, other.y), target) < MIN_SEGMENT
         }
         return if (collapses) null else target
+    }
+
+    /**
+     * Whether moving [movedId] onto [targetId] keeps the drawing valid.
+     *
+     * A direct wall between the nodes would collapse into a point, and a wall from each of them to
+     * the same neighbour would become two identical walls after welding. The duplicate would have to
+     * be dropped together with its dimension, so the weld is refused instead.
+     */
+    fun canWeldNodes(edges: List<PlanEdge>, movedId: String, targetId: String): Boolean {
+        if (movedId == targetId) return false
+        val movedNeighbours = edges.mapNotNull { edge -> edge.neighbourOf(movedId) }.toSet()
+        if (targetId in movedNeighbours) return false
+        val targetNeighbours = edges.mapNotNull { edge -> edge.neighbourOf(targetId) }.toSet()
+        return movedNeighbours.none { it in targetNeighbours }
+    }
+
+    /** Other end of [edge], or `null` when [nodeId] is not one of its ends. */
+    private fun PlanEdge.neighbourOf(nodeId: String): String? = when (nodeId) {
+        startNodeId -> endNodeId
+        endNodeId -> startNodeId
+        else -> null
     }
 
     /**

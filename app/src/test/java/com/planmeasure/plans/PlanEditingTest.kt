@@ -1,6 +1,5 @@
 package com.planmeasure.plans
 
-import com.planmeasure.measurements.LengthUnit
 import com.planmeasure.measurements.MeasurementSource
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -165,6 +164,86 @@ class PlanEditingTest {
     }
 
     @Test
+    fun weldsNodeDroppedOnAnotherVertex() {
+        val dimension = PlanDimension(
+            valueMm = "3200",
+            source = MeasurementSource.MANUAL,
+            updatedAt = 2_000L,
+        )
+        val plan = PlanDocument(
+            id = PLAN_ID,
+            name = "Room",
+            createdAt = 1_000L,
+            nodes = listOf(
+                PlanNode("a", 2.0, 2.0),
+                PlanNode("b", 8.0, 2.0),
+                PlanNode("c", 8.0, 6.0),
+                PlanNode("d", 12.0, 6.0),
+            ),
+            contours = listOf(
+                PlanContour("first", listOf(PlanEdge("e1", "a", "b"))),
+                PlanContour("second", listOf(PlanEdge("e2", "c", "d", dimension))),
+            ),
+        )
+
+        val welded = PlanEditing.moveNode(plan, "c", PlanPoint(8.2, 2.1), magnetRadius = 0.5)
+
+        assertEquals(listOf("a", "b", "d"), welded.nodes.map { it.id })
+        assertEquals(2, welded.edgeCount)
+        assertEquals("b", welded.edges.first { it.id == "e2" }.startNodeId)
+        assertEquals(dimension, welded.edges.first { it.id == "e2" }.dimension)
+
+        // The welded vertex is shared now: moving it drags both walls.
+        val dragged = PlanEditing.moveNode(welded, "b", PlanPoint(9.0, 3.0))
+        assertEquals(PlanPoint(9.0, 3.0), positionOf(dragged, "b"))
+        assertEquals(2, dragged.edges.count { it.startNodeId == "b" || it.endNodeId == "b" })
+    }
+
+    @Test
+    fun weldsNodesWhenGridSnapLandsOnExistingVertex() {
+        val plan = PlanDocument(
+            id = PLAN_ID,
+            name = "Room",
+            createdAt = 1_000L,
+            nodes = listOf(
+                PlanNode("a", 2.0, 2.0),
+                PlanNode("b", 8.0, 2.0),
+                PlanNode("c", 8.0, 6.0),
+                PlanNode("d", 12.0, 6.0),
+            ),
+            contours = listOf(
+                PlanContour("first", listOf(PlanEdge("e1", "a", "b"))),
+                PlanContour("second", listOf(PlanEdge("e2", "c", "d"))),
+            ),
+        )
+
+        val welded = PlanEditing.moveNode(plan, "c", PlanPoint(7.8, 2.2), magnetRadius = 0.0)
+
+        assertEquals(listOf("a", "b", "d"), welded.nodes.map { it.id })
+        assertEquals("b", welded.edges.first { it.id == "e2" }.startNodeId)
+    }
+
+    @Test
+    fun refusesWeldThatWouldDuplicateAWall() {
+        val plan = PlanDocument(
+            id = PLAN_ID,
+            name = "Room",
+            createdAt = 1_000L,
+            nodes = listOf(
+                PlanNode("a", 2.0, 2.0),
+                PlanNode("b", 5.0, 5.0),
+                PlanNode("x", 2.0, 6.0),
+            ),
+            contours = listOf(
+                PlanContour("first", listOf(PlanEdge("e1", "a", "x"))),
+                PlanContour("second", listOf(PlanEdge("e2", "b", "x"))),
+            ),
+        )
+
+        assertSame(plan, PlanEditing.moveNode(plan, "a", PlanPoint(5.2, 4.8), magnetRadius = 0.5))
+    }
+
+    @Test
     fun movesEdgeKeepingDirectionAndLength() {
         val plan = square()
         val bottom = plan.contours.single().edges.first()
@@ -315,8 +394,7 @@ class PlanEditingTest {
         val plan = square()
         val bottom = plan.contours.single().edges.first()
         val dimension = PlanDimension(
-            valueText = "3.20",
-            unit = LengthUnit.METERS,
+            valueMm = "3200",
             source = MeasurementSource.MANUAL,
             updatedAt = 2_000L,
         )
@@ -334,8 +412,7 @@ class PlanEditingTest {
         val plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
         val edge = plan.edges.single()
         val dimension = PlanDimension(
-            valueText = "1.5",
-            unit = LengthUnit.FEET,
+            valueMm = "457.2",
             source = MeasurementSource.RANGFINDER,
             updatedAt = 2_000L,
         )
@@ -353,8 +430,7 @@ class PlanEditingTest {
             document = plan,
             edgeId = edge.id,
             dimension = PlanDimension(
-                valueText = "1.5",
-                unit = LengthUnit.METERS,
+                valueMm = "1500",
                 source = MeasurementSource.MANUAL,
                 updatedAt = 2_000L,
             ),
@@ -373,8 +449,7 @@ class PlanEditingTest {
         val plan = square()
         val bottom = plan.contours.single().edges.first()
         val dimension = PlanDimension(
-            valueText = "3.20",
-            unit = LengthUnit.METERS,
+            valueMm = "3200",
             source = MeasurementSource.MANUAL,
             updatedAt = 2_000L,
         )
@@ -398,8 +473,7 @@ class PlanEditingTest {
             document = plan,
             edgeId = edge.id,
             dimension = PlanDimension(
-                valueText = "1.5",
-                unit = LengthUnit.METERS,
+                valueMm = "1500",
                 source = MeasurementSource.MANUAL,
                 updatedAt = 2_000L,
             ),

@@ -155,6 +155,52 @@ class PlanGeometryTest {
     }
 
     @Test
+    fun magnetSnapsMovedNodeToExistingVertex() {
+        val moved = PlanNode("a", 2.0, 2.0)
+        val target = PlanNode("b", 5.0, 5.0)
+        val neighbour = PlanNode("c", 2.0, 6.0)
+        val edge = PlanEdge("e", "a", "c")
+
+        assertEquals(
+            PlanPoint(5.0, 5.0),
+            PlanGeometry.snapNodeMove(
+                nodes = listOf(moved, target, neighbour),
+                edges = listOf(edge),
+                node = moved,
+                raw = PlanPoint(5.4, 4.7),
+                magnetRadius = 0.5,
+            ),
+        )
+    }
+
+    @Test
+    fun findsNodeStandingOnPoint() {
+        val node = PlanNode("n", 4.0, 7.0)
+
+        assertEquals(node, PlanGeometry.nodeAt(listOf(node), PlanPoint(4.0, 7.0)))
+        assertNull(PlanGeometry.nodeAt(listOf(node), PlanPoint(4.0, 7.0), excludeId = "n"))
+        assertNull(PlanGeometry.nodeAt(listOf(node), PlanPoint(5.0, 7.0)))
+    }
+
+    @Test
+    fun refusesMagnetThatWouldDuplicateAWall() {
+        val moved = PlanNode("a", 2.0, 2.0)
+        val target = PlanNode("b", 5.0, 5.0)
+        val shared = PlanNode("x", 2.0, 6.0)
+        val edges = listOf(PlanEdge("e1", "a", "x"), PlanEdge("e2", "b", "x"))
+
+        assertNull(
+            PlanGeometry.snapNodeMove(
+                nodes = listOf(moved, target, shared),
+                edges = edges,
+                node = moved,
+                raw = PlanPoint(5.2, 4.8),
+                magnetRadius = 0.5,
+            ),
+        )
+    }
+
+    @Test
     fun offsetsEdgeAsAWhole() {
         val nodes = listOf(PlanNode("a", 2.0, 2.0), PlanNode("b", 8.0, 2.0))
         val edge = PlanEdge("e", "a", "b")

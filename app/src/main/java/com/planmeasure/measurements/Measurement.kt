@@ -12,14 +12,13 @@ enum class MeasurementSource {
 /**
  * One saved distance.
  *
- * The value is stored as the decimal text the user or the device produced rather than as a
- * [Double]: it keeps the exact digits shown on screen and avoids binary rounding artefacts.
+ * The value is canonical decimal millimeters (see `com.planmeasure.units.Length`), not a [Double]:
+ * it keeps the exact digits of the reading, and the unit of the list decides how it is shown.
  */
 @Serializable
 data class Measurement(
     val id: String,
-    val valueText: String,
-    val unit: LengthUnit,
+    val valueMm: String,
     val comment: String = "",
     val createdAt: Long,
     val source: MeasurementSource,

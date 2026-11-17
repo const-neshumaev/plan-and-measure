@@ -84,8 +84,10 @@
     <string name="measurement_edit">Edit measurement</string>
     <string name="measurement_value_label">Value</string>
     <string name="measurement_value_hint">e.g. 1.763</string>
-    <string name="measurement_value_error">Enter a positive number</string>
-    <string name="measurement_unit_label">Unit</string>
+    <plurals name="measurement_value_error">
+        <item quantity="one">Enter a positive number with up to %1$d decimal place</item>
+        <item quantity="other">Enter a positive number with up to %1$d decimal places</item>
+    </plurals>
     <string name="measurement_comment_label">Comment</string>
     <string name="measurement_comment_hint">What is this dimension?</string>
     <string name="measurement_comment_add">Add a comment</string>
@@ -106,6 +108,7 @@
     <string name="measurement_source_rangefinder">From rangefinder</string>
     <string name="measurement_source_manual">Entered manually</string>
 
+    <string name="unit_bar">Unit: %1$s</string>
     <string name="unit_meters">m</string>
     <string name="unit_centimeters">cm</string>
     <string name="unit_millimeters">mm</string>

@@ -2,8 +2,6 @@ package com.planmeasure.ui.measurements
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -13,7 +11,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -31,14 +28,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.planmeasure.R
-import com.planmeasure.measurements.LengthUnit
 import com.planmeasure.measurements.Measurement
-import com.planmeasure.measurements.MeasurementInput
+import com.planmeasure.units.Length
+import com.planmeasure.units.LengthInput
+import com.planmeasure.units.LengthUnit
+import com.planmeasure.ui.components.labelRes
 
 private const val MAX_VALUE_LENGTH = 12
 private const val MAX_COMMENT_LENGTH = 200
@@ -46,28 +46,26 @@ private const val MAX_COMMENT_LENGTH = 200
 /**
  * Bottom sheet for adding or editing one measurement.
  *
- * In add mode the sheet stays open after each save so that several values can be typed without
- * reopening it; the unit and the focus stay in place.
+ * The sheet works in the unit of the open list; changing that unit is the job of the bar above the
+ * list, so the sheet stays compact. In add mode it stays open after each save so that several
+ * values can be typed without reopening it, and the focus stays in place.
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MeasurementEditorSheet(
     editing: Measurement?,
-    initialUnit: LengthUnit,
+    unit: LengthUnit,
     focusComment: Boolean,
     onDismiss: () -> Unit,
-    onAdd: (valueText: String, unit: LengthUnit, comment: String) -> Unit,
-    onUpdate: (valueText: String, unit: LengthUnit, comment: String) -> Unit,
-    onUnitChanged: (LengthUnit) -> Unit,
+    onAdd: (valueText: String, comment: String) -> Unit,
+    onUpdate: (valueText: String, comment: String) -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var value by rememberSaveable(editing?.id) { mutableStateOf(editing?.valueText.orEmpty()) }
-    var comment by rememberSaveable(editing?.id) { mutableStateOf(editing?.comment.orEmpty()) }
-    var unitName by rememberSaveable(editing?.id) {
-        mutableStateOf((editing?.unit ?: initialUnit).name)
+    var value by rememberSaveable(editing?.id) {
+        mutableStateOf(editing?.let { Length.format(it.valueMm, unit) }.orEmpty())
     }
-    val unit = LengthUnit.valueOf(unitName)
-    val normalized = MeasurementInput.normalize(value)
+    var comment by rememberSaveable(editing?.id) { mutableStateOf(editing?.comment.orEmpty()) }
+    val normalized = LengthInput.normalize(value, unit)
     val showError = value.isNotBlank() && normalized == null
     val valueFocusRequester = remember { FocusRequester() }
     val commentFocusRequester = remember { FocusRequester() }
@@ -109,7 +107,15 @@ fun MeasurementEditorSheet(
                 singleLine = true,
                 isError = showError,
                 supportingText = if (showError) {
-                    { Text(stringResource(R.string.measurement_value_error)) }
+                    {
+                        Text(
+                            pluralStringResource(
+                                R.plurals.measurement_value_error,
+                                unit.displayDecimals,
+                                unit.displayDecimals,
+                            ),
+                        )
+                    }
                 } else {
                     null
                 },
@@ -118,25 +124,6 @@ fun MeasurementEditorSheet(
                     imeAction = ImeAction.Next,
                 ),
             )
-
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = stringResource(R.string.measurement_unit_label),
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    LengthUnit.entries.forEach { candidate ->
-                        FilterChip(
-                            selected = unit == candidate,
-                            onClick = {
-                                unitName = candidate.name
-                                onUnitChanged(candidate)
-                            },
-                            label = { Text(stringResource(candidate.labelRes())) },
-                        )
-                    }
-                }
-            }
 
             OutlinedTextField(
                 value = comment,
@@ -162,7 +149,7 @@ fun MeasurementEditorSheet(
                     Button(
                         onClick = {
                             val text = normalized ?: return@Button
-                            onAdd(text, unit, comment)
+                            onAdd(text, comment)
                             value = ""
                             comment = ""
                             valueFocusRequester.requestFocus()
@@ -178,7 +165,7 @@ fun MeasurementEditorSheet(
                     Button(
                         onClick = {
                             val text = normalized ?: return@Button
-                            onUpdate(text, unit, comment)
+                            onUpdate(text, comment)
                         },
                         enabled = normalized != null,
                     ) {

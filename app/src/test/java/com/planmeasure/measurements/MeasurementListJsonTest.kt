@@ -1,5 +1,6 @@
 package com.planmeasure.measurements
 
+import com.planmeasure.units.LengthUnit
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -10,13 +11,13 @@ class MeasurementListJsonTest {
     private fun sample(): MeasurementList = MeasurementList(
         id = id,
         name = "Living room",
+        unit = LengthUnit.CENTIMETERS,
         createdAt = 1_000L,
         updatedAt = 2_000L,
         measurements = listOf(
             Measurement(
                 id = "00000000-0000-0000-0000-000000000002",
-                valueText = "1.763",
-                unit = LengthUnit.METERS,
+                valueMm = "1763",
                 comment = "Window width",
                 createdAt = 1_500L,
                 source = MeasurementSource.RANGFINDER,
@@ -34,9 +35,10 @@ class MeasurementListJsonTest {
     fun ignoresUnknownFields() {
         val text = """
             {
-              "schemaVersion": 1,
+              "schemaVersion": 2,
               "id": "$id",
               "name": "Room",
+              "unit": "METERS",
               "createdAt": 10,
               "updatedAt": 20,
               "futureField": {"nested": true},
@@ -60,8 +62,7 @@ class MeasurementListJsonTest {
               "measurements": [
                 {
                   "id": "00000000-0000-0000-0000-000000000003",
-                  "valueText": "2.500",
-                  "unit": "FEET",
+                  "valueMm": "762",
                   "createdAt": 15,
                   "source": "MANUAL"
                 }
@@ -71,6 +72,7 @@ class MeasurementListJsonTest {
 
         val decoded = MeasurementListJson.decode(text)
         assertEquals(MEASUREMENT_LIST_SCHEMA_VERSION, decoded.schemaVersion)
+        assertEquals(LengthUnit.METERS, decoded.unit)
         assertEquals(decoded.createdAt, decoded.updatedAt)
         assertEquals("", decoded.measurements.single().comment)
     }

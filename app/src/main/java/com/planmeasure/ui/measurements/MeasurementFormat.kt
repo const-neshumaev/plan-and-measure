@@ -1,21 +1,9 @@
 package com.planmeasure.ui.measurements
 
-import androidx.annotation.StringRes
-import com.planmeasure.R
-import com.planmeasure.measurements.LengthUnit
 import java.text.DateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-
-@StringRes
-fun LengthUnit.labelRes(): Int = when (this) {
-    LengthUnit.METERS -> R.string.unit_meters
-    LengthUnit.CENTIMETERS -> R.string.unit_centimeters
-    LengthUnit.MILLIMETERS -> R.string.unit_millimeters
-    LengthUnit.FEET -> R.string.unit_feet
-    LengthUnit.INCHES -> R.string.unit_inches
-}
 
 /** Time for today's readings, full date and time for older ones. */
 fun formatMeasurementTime(

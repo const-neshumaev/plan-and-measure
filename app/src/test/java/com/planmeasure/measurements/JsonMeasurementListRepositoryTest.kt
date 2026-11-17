@@ -31,8 +31,7 @@ class JsonMeasurementListRepositoryTest {
 
     private fun measurement() = Measurement(
         id = MEASUREMENT_ID,
-        valueText = "1.763",
-        unit = LengthUnit.METERS,
+        valueMm = "1763",
         comment = "Window",
         createdAt = 1_500L,
         source = MeasurementSource.MANUAL,

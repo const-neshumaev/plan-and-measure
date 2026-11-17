@@ -48,11 +48,13 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.planmeasure.LabViewModel
 import com.planmeasure.R
-import com.planmeasure.measurements.LengthUnit
 import com.planmeasure.plans.PlanDocument
 import com.planmeasure.plans.PlansViewModel
 import com.planmeasure.ui.components.ConnectBanner
 import com.planmeasure.ui.components.ListNameDialog
+import com.planmeasure.ui.components.UnitBar
+import com.planmeasure.units.Length
+import com.planmeasure.units.LengthUnit
 
 /** Editor of one plan: the drawing surface, tool switch, undo, grid toggle and document actions. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,7 +75,6 @@ fun PlanEditorScreen(
     var tool by rememberSaveable { mutableStateOf(PlanTool.Draw) }
     var selectedEdgeId by rememberSaveable { mutableStateOf<String?>(null) }
     var draftValue by rememberSaveable { mutableStateOf("") }
-    var draftUnitName by rememberSaveable { mutableStateOf(LengthUnit.METERS.name) }
     // The view starts fitted for every plan and is not part of the document, see ADR 0006.
     var viewport by rememberSaveable(plan.id, stateSaver = PlanViewportSaver) {
         mutableStateOf(PlanViewport())
@@ -86,25 +87,28 @@ fun PlanEditorScreen(
 
     // The selection must not outlive its edge: undo or a full clear removes it.
     val selectedEdge = plan.edges.firstOrNull { it.id == selectedEdgeId }
-    val dimensionUnit = LengthUnit.valueOf(draftUnitName)
 
-    // The field follows the document, so an incoming rangefinder reading or an undo replaces the
-    // value in an open card. Typing cannot trigger this, because the document changes only on
-    // commit.
-    LaunchedEffect(selectedEdge?.id, selectedEdge?.dimension) {
-        val dimension = selectedEdge?.dimension
-        if (dimension != null) {
-            draftValue = dimension.valueText
-            draftUnitName = dimension.unit.name
-        } else {
-            draftValue = ""
-        }
+    // The field follows the document, so an incoming rangefinder reading, an undo or a unit
+    // change replaces the shown value; typing cannot trigger this, because the document changes
+    // only on commit.
+    LaunchedEffect(selectedEdge?.id, selectedEdge?.dimension, plan.unit) {
+        draftValue = selectedEdge?.dimension
+            ?.let { Length.format(it.valueMm, plan.unit) }
+            .orEmpty()
     }
 
     fun commitDimension() {
         if (tool != PlanTool.Dimensions) return
         val edgeId = selectedEdgeId ?: return
-        viewModel.setEdgeDimension(edgeId, draftValue, LengthUnit.valueOf(draftUnitName))
+        viewModel.setEdgeDimension(edgeId, draftValue)
+    }
+
+    fun changeUnit(unit: LengthUnit) {
+        if (unit == plan.unit) return
+        // Commit what is typed before the unit changes, otherwise the draft would be read in the
+        // wrong unit and silently become a different length.
+        commitDimension()
+        viewModel.setUnit(unit)
     }
 
     fun closeCard() {
@@ -295,6 +299,11 @@ fun PlanEditorScreen(
                 onConnect = onOpenConnect,
                 modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp),
             )
+            UnitBar(
+                unit = plan.unit,
+                onUnitChange = ::changeUnit,
+                modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp),
+            )
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -321,11 +330,10 @@ fun PlanEditorScreen(
                         canvasSize = canvasSize,
                         edgeId = selectedEdge.id,
                         value = draftValue,
-                        unit = dimensionUnit,
+                        unit = plan.unit,
                         hasSavedDimension = selectedEdge.dimension != null,
                         connected = gattState.connected,
                         onValueChange = { draftValue = it },
-                        onUnitChange = { draftUnitName = it.name },
                         onDone = {
                             commitDimension()
                             focusManager.clearFocus()

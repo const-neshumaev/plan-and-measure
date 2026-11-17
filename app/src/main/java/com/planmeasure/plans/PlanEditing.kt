@@ -60,14 +60,35 @@ object PlanEditing {
     /**
      * Moves [nodeId] to [to], snapped to the grid by [PlanGeometry.snapNodeMove].
      *
-     * A node is shared by every edge that touches it, so the whole shape follows it. A node pulled
-     * past the border grows the sheet. Returns the same instance when the node is unknown or the
-     * target would collapse an incident edge.
+     * A node is shared by every edge that touches it, so the whole shape follows it. Dropping the
+     * node on another vertex welds the two together: the edges of the moved node are reattached to
+     * the target, and the empty node disappears. A node pulled past the border grows the sheet.
+     * Returns the same instance when the node is unknown, the target would collapse an incident
+     * edge or welding would create two walls between the same pair of nodes.
+     *
+     * [magnetRadius] is in world units and comes from the same screen distance as the magnet of a
+     * drawn segment, so both tools feel alike.
      */
-    fun moveNode(document: PlanDocument, nodeId: String, to: PlanPoint): PlanDocument {
+    fun moveNode(
+        document: PlanDocument,
+        nodeId: String,
+        to: PlanPoint,
+        magnetRadius: Double = 0.0,
+    ): PlanDocument {
         val node = document.nodes.firstOrNull { it.id == nodeId } ?: return document
-        val target = PlanGeometry.snapNodeMove(document.nodes, document.edges, node, to)
-            ?: return document
+        val target = PlanGeometry.snapNodeMove(
+            nodes = document.nodes,
+            edges = document.edges,
+            node = node,
+            raw = to,
+            magnetRadius = magnetRadius,
+        ) ?: return document
+
+        val targetNode = PlanGeometry.nodeAt(document.nodes, target, excludeId = node.id)
+        if (targetNode != null) {
+            return document.mergeNodeInto(movedId = node.id, targetId = targetNode.id) ?: document
+        }
+
         if (target.x == node.x && target.y == node.y) return document
         return document.copy(
             nodes = document.nodes.map { current ->
@@ -241,5 +262,27 @@ object PlanEditing {
             .flatMap { edge -> listOf(edge.startNodeId, edge.endNodeId) }
             .toSet()
         return copy(nodes = nodes.filter { it.id in used })
+    }
+
+    /**
+     * Reattaches every edge of [movedId] to [targetId] and drops the empty node.
+     *
+     * Returns `null` when both nodes already have a wall to the same neighbour: after welding those
+     * walls would be duplicates, and silently deleting one would lose its dimension.
+     */
+    private fun PlanDocument.mergeNodeInto(movedId: String, targetId: String): PlanDocument? {
+        if (!PlanGeometry.canWeldNodes(edges, movedId, targetId)) return null
+
+        val merged = contours.map { contour ->
+            contour.copy(
+                edges = contour.edges.map { edge ->
+                    edge.copy(
+                        startNodeId = if (edge.startNodeId == movedId) targetId else edge.startNodeId,
+                        endNodeId = if (edge.endNodeId == movedId) targetId else edge.endNodeId,
+                    )
+                },
+            )
+        }
+        return copy(contours = merged).withoutUnusedNodes()
     }
 }

@@ -1,11 +1,11 @@
 package com.planmeasure.plans
 
-import com.planmeasure.measurements.LengthUnit
 import com.planmeasure.measurements.MeasurementSource
+import com.planmeasure.units.LengthUnit
 import kotlinx.serialization.Serializable
 
 /** Current version of the on-disk plan document. Bump when the shape changes. */
-const val PLAN_SCHEMA_VERSION = 3
+const val PLAN_SCHEMA_VERSION = 4
 
 /**
  * Size of the drawing sheet in grid units; the sheet is a rectangle starting at the origin.
@@ -45,16 +45,15 @@ data class PlanEdge(
 )
 
 /**
- * A distance the user attached to one edge, see ADR 0007.
+ * A distance the user attached to one edge, see ADR 0007 and 0009.
  *
- * The value is the decimal text that was typed or received, together with the unit it was entered
- * in: the plan has no real-world scale, so a dimension annotates the drawing instead of changing
- * its geometry, and converting units here would lose the digits the device showed.
+ * The value is canonical millimeters (see `com.planmeasure.units.Length`): the plan has no real-world
+ * scale, so a dimension annotates the drawing instead of changing its geometry. The unit of the
+ * plan decides how the same value is shown, so changing it never rewrites the dimension.
  */
 @Serializable
 data class PlanDimension(
-    val valueText: String,
-    val unit: LengthUnit,
+    val valueMm: String,
     val source: MeasurementSource,
     val updatedAt: Long,
 )
@@ -80,6 +79,8 @@ data class PlanDocument(
     val schemaVersion: Int = PLAN_SCHEMA_VERSION,
     val id: String,
     val name: String,
+    /** Unit of every dimension of this plan; the drawing itself stays in abstract grid units. */
+    val unit: LengthUnit = LengthUnit.METERS,
     val createdAt: Long,
     val updatedAt: Long = createdAt,
     val world: PlanSize = PlanSize(),
