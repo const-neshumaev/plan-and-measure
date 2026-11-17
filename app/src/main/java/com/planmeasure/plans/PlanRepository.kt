@@ -1,5 +1,6 @@
 package com.planmeasure.plans
 
+import com.planmeasure.units.LengthUnit
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -20,7 +21,7 @@ interface PlanRepository {
     /** Returns the full document, or `null` if it is missing or unreadable. */
     suspend fun load(id: String): PlanDocument?
 
-    suspend fun create(name: String): PlanDocument
+    suspend fun create(name: String, unit: LengthUnit = LengthUnit.METERS): PlanDocument
 
     /** Writes the document and refreshes the in-memory list. */
     suspend fun update(plan: PlanDocument)

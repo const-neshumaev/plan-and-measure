@@ -1,6 +1,7 @@
 package com.planmeasure.measurements
 
 import com.planmeasure.storage.JsonDocumentStore
+import com.planmeasure.units.LengthUnit
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
@@ -50,23 +51,25 @@ class JsonMeasurementListRepository(
         }
     }
 
-    override suspend fun create(name: String): MeasurementList = withContext(Dispatchers.IO) {
-        mutex.withLock {
-            val trimmed = name.trim()
-            require(trimmed.isNotEmpty()) { "List name must not be blank" }
-            val now = clock()
-            val document = MeasurementList(
-                id = idGenerator(),
-                name = trimmed,
-                createdAt = now,
-                updatedAt = now,
-            )
-            writeDocument(document)
-            summaries[document.id] = document.summary()
-            publishLocked()
-            document
+    override suspend fun create(name: String, unit: LengthUnit): MeasurementList =
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                val trimmed = name.trim()
+                require(trimmed.isNotEmpty()) { "List name must not be blank" }
+                val now = clock()
+                val document = MeasurementList(
+                    id = idGenerator(),
+                    name = trimmed,
+                    unit = unit,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+                writeDocument(document)
+                summaries[document.id] = document.summary()
+                publishLocked()
+                document
+            }
         }
-    }
 
     override suspend fun update(list: MeasurementList) = withContext(Dispatchers.IO) {
         mutex.withLock {

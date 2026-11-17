@@ -1,6 +1,7 @@
 package com.planmeasure.plans
 
 import com.planmeasure.storage.JsonDocumentStore
+import com.planmeasure.units.LengthUnit
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
@@ -48,23 +49,25 @@ class JsonPlanRepository(
         }
     }
 
-    override suspend fun create(name: String): PlanDocument = withContext(Dispatchers.IO) {
-        mutex.withLock {
-            val trimmed = name.trim()
-            require(trimmed.isNotEmpty()) { "Plan name must not be blank" }
-            val now = clock()
-            val document = PlanDocument(
-                id = idGenerator(),
-                name = trimmed,
-                createdAt = now,
-                updatedAt = now,
-            )
-            writeDocument(document)
-            documents[document.id] = document
-            publishLocked()
-            document
+    override suspend fun create(name: String, unit: LengthUnit): PlanDocument =
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                val trimmed = name.trim()
+                require(trimmed.isNotEmpty()) { "Plan name must not be blank" }
+                val now = clock()
+                val document = PlanDocument(
+                    id = idGenerator(),
+                    name = trimmed,
+                    unit = unit,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+                writeDocument(document)
+                documents[document.id] = document
+                publishLocked()
+                document
+            }
         }
-    }
 
     override suspend fun update(plan: PlanDocument) = withContext(Dispatchers.IO) {
         mutex.withLock {

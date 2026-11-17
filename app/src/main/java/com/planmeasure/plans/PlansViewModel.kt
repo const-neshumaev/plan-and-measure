@@ -5,11 +5,13 @@ import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.planmeasure.R
-import com.planmeasure.measurements.LengthUnit
-import com.planmeasure.measurements.MeasurementInput
 import com.planmeasure.measurements.MeasurementSource
-import com.planmeasure.measurements.toLengthUnit
 import com.planmeasure.protocol.DistanceFrame
+import com.planmeasure.settings.LastLengthUnitStorage
+import com.planmeasure.units.Length
+import com.planmeasure.units.LengthInput
+import com.planmeasure.units.LengthUnit
+import com.planmeasure.units.toCanonicalMillimeters
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -31,11 +33,14 @@ import kotlinx.coroutines.sync.withLock
  * empty when a plan is opened, so the undo button means "undo the last change of this session".
  *
  * Dimensions are stored on edges and never change coordinates: the sheet has no real-world scale,
- * so a dimension annotates a wall instead of resizing it (ADR 0007).
+ * so a dimension annotates a wall instead of resizing it (ADR 0007). Values are canonical
+ * millimeters, and the plan's unit decides how they are shown (ADR 0009).
  */
 class PlansViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repository = JsonPlanRepository(File(app.filesDir, DATA_DIRECTORY))
+
+    private val lastUnit = LastLengthUnitStorage(app)
 
     private val persistence = Mutex()
 
@@ -92,7 +97,7 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
         if (name.isBlank()) return
         viewModelScope.launch {
             persistence.withLock {
-                runCatching { repository.create(name) }
+                runCatching { repository.create(name, lastUnit.load()) }
                     .onSuccess {
                         resetUndo()
                         _openPlan.value = it
@@ -162,9 +167,9 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Applies one node drag; [to] is a raw world point and is snapped by [PlanEditing]. */
-    fun moveNode(nodeId: String, to: PlanPoint) {
+    fun moveNode(nodeId: String, to: PlanPoint, magnetRadius: Double) {
         val current = _openPlan.value ?: return
-        val updated = PlanEditing.moveNode(current, nodeId, to)
+        val updated = PlanEditing.moveNode(current, nodeId, to, magnetRadius)
         if (updated === current) return
         commit(updated.copy(updatedAt = System.currentTimeMillis()))
     }
@@ -190,12 +195,21 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
     /**
      * Saves a manually entered dimension on [edgeId].
      *
-     * The text is validated and canonicalized by [MeasurementInput]; blank or invalid input is
-     * ignored, so a card dismissed with a half-typed value keeps the previous dimension.
+     * The text is validated and canonicalized in the plan's unit by [LengthInput]; blank or
+     * invalid input is ignored, so a card dismissed with a half-typed value keeps the previous
+     * dimension.
      */
-    fun setEdgeDimension(edgeId: String, valueText: String, unit: LengthUnit) {
-        val normalized = MeasurementInput.normalize(valueText) ?: return
-        applyDimension(edgeId, normalized, unit, MeasurementSource.MANUAL)
+    fun setEdgeDimension(edgeId: String, valueText: String) {
+        val current = _openPlan.value ?: return
+        val existing = current.edges.firstOrNull { it.id == edgeId }?.dimension
+        // An untouched card shows the rounded display form of the exact stored value. Closing it
+        // must not replace the exact value with its rounded form.
+        val valueMm = when {
+            existing != null && valueText.trim() == Length.format(existing.valueMm, current.unit) ->
+                existing.valueMm
+            else -> LengthInput.normalize(valueText, current.unit) ?: return
+        }
+        applyDimension(edgeId, valueMm, MeasurementSource.MANUAL)
     }
 
     /**
@@ -205,8 +219,16 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
      * user is not looking at. Frames with an unknown unit are dropped, like in measurement lists.
      */
     fun onRangefinderFrame(edgeId: String, frame: DistanceFrame) {
-        val unit = frame.unit.toLengthUnit() ?: return
-        applyDimension(edgeId, frame.normalizedText, unit, MeasurementSource.RANGFINDER)
+        val valueMm = frame.toCanonicalMillimeters() ?: return
+        applyDimension(edgeId, valueMm, MeasurementSource.RANGFINDER)
+    }
+
+    /** Changes the unit of the open plan; the stored millimeters are not touched. */
+    fun setUnit(unit: LengthUnit) {
+        lastUnit.save(unit)
+        val current = _openPlan.value ?: return
+        if (current.unit == unit) return
+        commit(current.copy(unit = unit, updatedAt = System.currentTimeMillis()))
     }
 
     /** Removes the dimension of [edgeId] and keeps the edge itself. */
@@ -229,7 +251,7 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
     private fun newId(): String = UUID.randomUUID().toString()
 
     /**
-     * Writes a dimension unless the edge already shows this value in this unit.
+     * Writes a dimension unless the edge already carries this value.
      *
      * Closing a card without edits, or pointing the device at one wall repeatedly, must not rewrite
      * the dimension: every write is an undo step and a file update. The source is ignored on
@@ -238,21 +260,19 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun applyDimension(
         edgeId: String,
-        valueText: String,
-        unit: LengthUnit,
+        valueMm: String,
         source: MeasurementSource,
     ) {
         val current = _openPlan.value ?: return
         val edge = current.edges.firstOrNull { it.id == edgeId } ?: return
         val existing = edge.dimension
-        if (existing != null && existing.valueText == valueText && existing.unit == unit) return
+        if (existing != null && existing.valueMm == valueMm) return
         val now = System.currentTimeMillis()
         val updated = PlanEditing.setDimension(
             document = current,
             edgeId = edgeId,
             dimension = PlanDimension(
-                valueText = valueText,
-                unit = unit,
+                valueMm = valueMm,
                 source = source,
                 updatedAt = now,
             ),

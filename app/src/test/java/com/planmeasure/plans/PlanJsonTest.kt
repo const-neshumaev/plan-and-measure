@@ -1,7 +1,7 @@
 package com.planmeasure.plans
 
-import com.planmeasure.measurements.LengthUnit
 import com.planmeasure.measurements.MeasurementSource
+import com.planmeasure.units.LengthUnit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -50,6 +50,7 @@ class PlanJsonTest {
         val plan = PlanJson.decode(text)
 
         assertEquals(PLAN_SCHEMA_VERSION, plan.schemaVersion)
+        assertEquals(LengthUnit.METERS, plan.unit)
         assertEquals(PlanSize(), plan.world)
         assertTrue(plan.nodes.isEmpty())
         assertTrue(plan.contours.isEmpty())
@@ -61,6 +62,7 @@ class PlanJsonTest {
         val plan = PlanDocument(
             id = "00000000-0000-0000-0000-000000000004",
             name = "Kitchen",
+            unit = LengthUnit.CENTIMETERS,
             createdAt = 1_000L,
             nodes = listOf(
                 PlanNode("node-a", 2.0, 2.0),
@@ -75,8 +77,7 @@ class PlanJsonTest {
                             startNodeId = "node-a",
                             endNodeId = "node-b",
                             dimension = PlanDimension(
-                                valueText = "3.20",
-                                unit = LengthUnit.METERS,
+                                valueMm = "3200",
                                 source = MeasurementSource.MANUAL,
                                 updatedAt = 2_000L,
                             ),
@@ -86,8 +87,7 @@ class PlanJsonTest {
                             startNodeId = "node-b",
                             endNodeId = "node-a",
                             dimension = PlanDimension(
-                                valueText = "7.26",
-                                unit = LengthUnit.FEET,
+                                valueMm = "7260",
                                 source = MeasurementSource.RANGFINDER,
                                 updatedAt = 3_000L,
                             ),
@@ -98,7 +98,8 @@ class PlanJsonTest {
         )
 
         assertEquals(plan, PlanJson.decode(PlanJson.encode(plan)))
-        assertEquals(3, plan.schemaVersion)
+        assertEquals(4, plan.schemaVersion)
+        assertEquals(LengthUnit.CENTIMETERS, plan.unit)
     }
 
     @Test
@@ -123,6 +124,7 @@ class PlanJsonTest {
 
         assertNull(plan.edges.single().dimension)
         assertEquals(2, plan.schemaVersion)
+        assertEquals(LengthUnit.METERS, plan.unit)
     }
 
     @Test
@@ -141,6 +143,7 @@ class PlanJsonTest {
 
         // A version 1 document had a fixed sheet, so its coordinates must be read as is.
         assertEquals(PlanSize(), plan.world)
+        assertEquals(LengthUnit.METERS, plan.unit)
         assertEquals(PlanPoint(21.0, 4.0), plan.nodes.single().let { PlanPoint(it.x, it.y) })
     }
 }

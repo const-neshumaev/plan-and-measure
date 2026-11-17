@@ -88,8 +88,10 @@
     <string name="measurement_edit">Изменить измерение</string>
     <string name="measurement_value_label">Значение</string>
     <string name="measurement_value_hint">Например, 1.763</string>
-    <string name="measurement_value_error">Введите положительное число</string>
-    <string name="measurement_unit_label">Единица</string>
+    <plurals name="measurement_value_error">
+        <item quantity="one">Введите положительное число, не более %1$d знака после запятой</item>
+        <item quantity="other">Введите положительное число, не более %1$d знаков после запятой</item>
+    </plurals>
     <string name="measurement_comment_label">Комментарий</string>
     <string name="measurement_comment_hint">Что это за размер?</string>
     <string name="measurement_comment_add">Добавить комментарий</string>
@@ -110,6 +112,7 @@
     <string name="measurement_source_rangefinder">С дальномера</string>
     <string name="measurement_source_manual">Введено вручную</string>
 
+    <string name="unit_bar">Единица: %1$s</string>
     <string name="unit_meters">м</string>
     <string name="unit_centimeters">см</string>
     <string name="unit_millimeters">мм</string>

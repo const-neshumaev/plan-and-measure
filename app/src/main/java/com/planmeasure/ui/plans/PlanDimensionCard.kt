@@ -4,8 +4,6 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +35,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -45,11 +43,11 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.planmeasure.R
-import com.planmeasure.measurements.LengthUnit
-import com.planmeasure.measurements.MeasurementInput
+import com.planmeasure.units.LengthInput
+import com.planmeasure.units.LengthUnit
 import com.planmeasure.plans.PlanDocument
 import com.planmeasure.plans.PlanPoint
-import com.planmeasure.ui.measurements.labelRes
+import com.planmeasure.ui.components.labelRes
 import kotlin.math.roundToInt
 
 private val CardWidth = 300.dp
@@ -128,7 +126,6 @@ internal fun dimensionCardOffset(
  * Done is pressed or when a rangefinder reading arrives. [hasSavedDimension] only decides whether
  * the field takes focus and shows the delete action.
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun PlanDimensionCard(
     edgeId: String,
@@ -137,13 +134,12 @@ internal fun PlanDimensionCard(
     hasSavedDimension: Boolean,
     connected: Boolean,
     onValueChange: (String) -> Unit,
-    onUnitChange: (LengthUnit) -> Unit,
     onDone: () -> Unit,
     onDelete: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val normalized = MeasurementInput.normalize(value)
+    val normalized = LengthInput.normalize(value, unit)
     val showError = value.isNotBlank() && normalized == null
     val focusRequester = remember { FocusRequester() }
 
@@ -201,7 +197,15 @@ internal fun PlanDimensionCard(
                 singleLine = true,
                 isError = showError,
                 supportingText = if (showError) {
-                    { Text(stringResource(R.string.measurement_value_error)) }
+                    {
+                        Text(
+                            pluralStringResource(
+                                R.plurals.measurement_value_error,
+                                unit.displayDecimals,
+                                unit.displayDecimals,
+                            ),
+                        )
+                    }
                 } else {
                     null
                 },
@@ -211,19 +215,6 @@ internal fun PlanDimensionCard(
                 ),
                 keyboardActions = KeyboardActions(onDone = { onDone() }),
             )
-
-            FlowRow(
-                modifier = Modifier.padding(end = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                LengthUnit.entries.forEach { candidate ->
-                    FilterChip(
-                        selected = unit == candidate,
-                        onClick = { onUnitChange(candidate) },
-                        label = { Text(stringResource(candidate.labelRes())) },
-                    )
-                }
-            }
 
             Text(
                 text = stringResource(
@@ -258,7 +249,6 @@ internal fun PlanDimensionCardOverlay(
     hasSavedDimension: Boolean,
     connected: Boolean,
     onValueChange: (String) -> Unit,
-    onUnitChange: (LengthUnit) -> Unit,
     onDone: () -> Unit,
     onDelete: () -> Unit,
     onClose: () -> Unit,
@@ -286,7 +276,6 @@ internal fun PlanDimensionCardOverlay(
         hasSavedDimension = hasSavedDimension,
         connected = connected,
         onValueChange = onValueChange,
-        onUnitChange = onUnitChange,
         onDone = onDone,
         onDelete = onDelete,
         onClose = onClose,

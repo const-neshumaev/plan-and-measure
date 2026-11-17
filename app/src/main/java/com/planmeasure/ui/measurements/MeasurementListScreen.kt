@@ -57,9 +57,13 @@ import com.planmeasure.measurements.Measurement
 import com.planmeasure.measurements.MeasurementList
 import com.planmeasure.measurements.MeasurementSource
 import com.planmeasure.measurements.MeasurementsViewModel
+import com.planmeasure.units.Length
+import com.planmeasure.units.LengthUnit
 import com.planmeasure.ui.components.ConnectBanner
 import com.planmeasure.ui.components.EmptyState
 import com.planmeasure.ui.components.ListNameDialog
+import com.planmeasure.ui.components.UnitBar
+import com.planmeasure.ui.components.labelRes
 import java.util.Locale
 import kotlinx.coroutines.launch
 
@@ -75,7 +79,6 @@ fun MeasurementListScreen(
 ) {
     val gattState by labViewModel.gattState.collectAsState()
     val capturePaused by viewModel.capturePaused.collectAsState()
-    val inputUnit by viewModel.inputUnit.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -222,6 +225,10 @@ fun MeasurementListScreen(
                 )
             }
 
+            item {
+                UnitBar(unit = list.unit, onUnitChange = viewModel::setUnit)
+            }
+
             if (list.measurements.isEmpty()) {
                 item {
                     EmptyState(
@@ -242,6 +249,7 @@ fun MeasurementListScreen(
                 ) { measurement ->
                     MeasurementRow(
                         measurement = measurement,
+                        unit = list.unit,
                         locale = locale,
                         onEdit = {
                             editingId = measurement.id
@@ -263,19 +271,14 @@ fun MeasurementListScreen(
     if (sheetOpen) {
         MeasurementEditorSheet(
             editing = editing,
-            initialUnit = inputUnit,
+            unit = list.unit,
             focusComment = focusComment,
             onDismiss = { sheetOpen = false },
-            onAdd = { value, unit, comment ->
-                viewModel.setInputUnit(unit)
-                viewModel.addMeasurement(value, unit, comment)
-            },
-            onUpdate = { value, unit, comment ->
-                viewModel.setInputUnit(unit)
-                editing?.let { viewModel.updateMeasurement(it.id, value, unit, comment) }
+            onAdd = { value, comment -> viewModel.addMeasurement(value, comment) },
+            onUpdate = { value, comment ->
+                editing?.let { viewModel.updateMeasurement(it.id, value, comment) }
                 sheetOpen = false
             },
-            onUnitChanged = viewModel::setInputUnit,
         )
     }
 
@@ -370,6 +373,7 @@ private fun CaptureBanner(
 @Composable
 private fun MeasurementRow(
     measurement: Measurement,
+    unit: LengthUnit,
     locale: Locale,
     onEdit: () -> Unit,
     onEditComment: () -> Unit,
@@ -413,13 +417,13 @@ private fun MeasurementRow(
             ) {
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
-                        text = measurement.valueText,
+                        text = Length.format(measurement.valueMm, unit),
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontFamily = FontFamily.Monospace,
                         ),
                     )
                     Text(
-                        text = stringResource(measurement.unit.labelRes()),
+                        text = stringResource(unit.labelRes()),
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.padding(start = 4.dp, bottom = 3.dp),
                     )
