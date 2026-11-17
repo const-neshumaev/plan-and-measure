@@ -12,9 +12,7 @@ import android.os.Build
 import com.planmeasure.logging.LogKind
 import com.planmeasure.logging.PacketLog
 import com.planmeasure.protocol.DistanceFrame
-import com.planmeasure.protocol.DistanceUnit
 import com.planmeasure.protocol.FrameCodec
-import java.util.Locale
 import java.util.UUID
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -461,15 +459,13 @@ class BleGattClient(
             _frames.tryEmit(frame)
         }
         val message = if (frame != null) {
-            val shown = if (frame.unit == DistanceUnit.FEET) {
-                "=> %.3f %s (raw %s)".format(
-                    Locale.US,
-                    frame.normalizedValue,
-                    frame.unitText,
-                    frame.valueText,
-                )
+            val shown = if (frame.normalizedText == frame.valueText) {
+                "=> ${frame.normalizedText} ${frame.unitText}"
             } else {
-                "=> ${frame.valueText} ${frame.unitText}"
+                val rawValue = frame.fractionText
+                    ?.let { "${frame.valueText} $it" }
+                    ?: frame.valueText
+                "=> ${frame.normalizedText} ${frame.unitText} (raw $rawValue)"
             }
             "RX ${value.size} byte(s) $shown"
         } else {
