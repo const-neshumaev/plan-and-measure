@@ -17,10 +17,14 @@
     <string name="demo_banner">Demo content: functionality is coming soon</string>
 
     <!-- Home -->
-    <string name="home_tagline">Measurements, photos and room plans</string>
+    <string name="home_tagline">Measurements, photos and plans</string>
     <string name="home_status_connected">Rangefinder connected</string>
     <string name="home_status_disconnected">Rangefinder not connected</string>
     <string name="home_status_connected_details">%1$s · MTU %2$d · %3$s</string>
+    <!-- Rangefinder status shared by measurement lists and plans -->
+    <string name="rangefinder_connected">Rangefinder connected</string>
+    <string name="rangefinder_disconnected">Rangefinder not connected</string>
+    <string name="rangefinder_connect">Connect</string>
     <plurals name="services_count">
         <item quantity="one">%1$d service</item>
         <item quantity="other">%1$d services</item>
@@ -52,7 +56,7 @@
     <string name="section_measurements">Measurements</string>
     <string name="section_measurements_details">Saved lists and readings</string>
     <string name="section_plans">Plans</string>
-    <string name="section_plans_details">Room outlines drawn by hand</string>
+    <string name="section_plans_details">Outlines drawn by hand</string>
     <string name="section_projects">Projects</string>
     <string name="section_projects_details">Rooms, plans and measurements</string>
     <string name="section_capture">Capture</string>
@@ -96,15 +100,9 @@
     <string name="measurement_error_create">Could not create the list</string>
     <string name="measurement_error_delete">Could not delete the list</string>
     <string name="measurement_error_load">Could not open the list</string>
-    <string name="measurement_capture_on">Recording from rangefinder</string>
-    <string name="measurement_capture_on_hint">New readings are added automatically.</string>
     <string name="measurement_capture_paused">Recording paused</string>
-    <string name="measurement_capture_paused_hint">Readings are ignored until you resume.</string>
     <string name="measurement_capture_pause">Pause</string>
     <string name="measurement_capture_resume">Resume</string>
-    <string name="measurement_disconnected">Rangefinder not connected</string>
-    <string name="measurement_disconnected_hint">Enter values manually or connect the rangefinder.</string>
-    <string name="measurement_connect">Connect</string>
     <string name="measurement_source_rangefinder">From rangefinder</string>
     <string name="measurement_source_manual">Entered manually</string>
 
@@ -118,7 +116,7 @@
     <!-- Plans -->
     <string name="plan_new">New plan</string>
     <string name="plan_name">Plan name</string>
-    <string name="plan_name_hint">e.g. Living room</string>
+    <string name="plan_name_hint">e.g. Sketch</string>
     <string name="plan_default_name">Plan %1$s</string>
     <string name="plan_rename_title">Rename plan</string>
     <string name="plan_delete_title">Delete plan?</string>
@@ -130,26 +128,24 @@
         <item quantity="other">%1$d edges</item>
     </plurals>
     <string name="plan_lists_empty_title">No saved plans yet</string>
-    <string name="plan_lists_empty_text">Create a plan and draw the room outline with your finger.</string>
-    <string name="plan_draw_hint">Drag to draw a wall.\nThe line snaps to the grid and aligns to 45° when you aim close.\nTwo fingers zoom and move the sheet.</string>
+    <string name="plan_lists_empty_text">Create a plan and draw an outline with your finger.</string>
+    <string name="plan_draw_hint">Drag to draw a line.\nThe line snaps to the grid and aligns to 45° when you aim close.\nTap a line to add a point.\nTwo fingers zoom and move the sheet.</string>
     <string name="plan_grid">Grid</string>
     <string name="plan_fit_screen">Fit to screen</string>
     <string name="plan_tool_draw">Draw</string>
     <string name="plan_tool_edit">Edit</string>
     <string name="plan_tool_dimension">Dimensions</string>
-    <string name="plan_edit_hint">Drag a node to reshape the plan. Tap a line to select it, hold it to move.\nTwo fingers zoom and move the sheet.</string>
-    <string name="plan_dimension_hint">Tap a wall to attach a dimension.\nTwo fingers zoom and move the sheet.</string>
-    <string name="plan_dimension_title">Wall dimension</string>
+    <string name="plan_edit_hint">Drag a node to reshape the plan. Tap a line to select it, hold it to move. Tap the selected line again to add a point.\nTwo fingers zoom and move the sheet.</string>
+    <string name="plan_dimension_hint">Tap a line to attach a dimension.\nTwo fingers zoom and move the sheet.</string>
+    <string name="plan_dimension_title">Line dimension</string>
     <string name="plan_dimension_value">Length</string>
     <string name="plan_dimension_delete">Delete dimension</string>
     <string name="plan_dimension_hint_connected">The next rangefinder reading replaces this value.</string>
     <string name="plan_dimension_hint_disconnected">The rangefinder is not connected. Enter the value manually.</string>
-    <string name="plan_rangefinder_connected">Rangefinder connected</string>
-    <string name="plan_rangefinder_connected_hint">Open a wall dimension and take a reading.</string>
-    <string name="plan_rangefinder_disconnected">Rangefinder not connected</string>
-    <string name="plan_rangefinder_disconnected_hint">Enter wall dimensions manually or connect the rangefinder.</string>
-    <string name="plan_rangefinder_connect">Connect</string>
     <string name="plan_delete_edge">Delete line</string>
+    <string name="plan_split_title">Add point</string>
+    <string name="plan_split_text">The line has a dimension %1$s. Adding a point splits the line and removes the dimension; Undo restores both.</string>
+    <string name="plan_split_confirm">Add point</string>
     <string name="plan_clear">Clear drawing</string>
     <string name="plan_clear_title">Clear drawing?</string>
     <string name="plan_clear_text">All lines in “%1$s” will be removed.</string>

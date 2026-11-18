@@ -47,6 +47,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -79,6 +80,7 @@ fun MeasurementListScreen(
 ) {
     val gattState by labViewModel.gattState.collectAsState()
     val capturePaused by viewModel.capturePaused.collectAsState()
+    val lastAddedId by viewModel.lastAddedMeasurementId.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -251,6 +253,7 @@ fun MeasurementListScreen(
                         measurement = measurement,
                         unit = list.unit,
                         locale = locale,
+                        highlighted = measurement.id == lastAddedId,
                         onEdit = {
                             editingId = measurement.id
                             focusComment = false
@@ -340,21 +343,14 @@ private fun CaptureBanner(
     }
     val title = stringResource(
         when {
-            !connected -> R.string.measurement_disconnected
+            !connected -> R.string.rangefinder_disconnected
             paused -> R.string.measurement_capture_paused
-            else -> R.string.measurement_capture_on
-        },
-    )
-    val hint = stringResource(
-        when {
-            !connected -> R.string.measurement_disconnected_hint
-            paused -> R.string.measurement_capture_paused_hint
-            else -> R.string.measurement_capture_on_hint
+            else -> R.string.rangefinder_connected
         },
     )
     val action = stringResource(
         when {
-            !connected -> R.string.measurement_connect
+            !connected -> R.string.rangefinder_connect
             paused -> R.string.measurement_capture_resume
             else -> R.string.measurement_capture_pause
         },
@@ -362,7 +358,6 @@ private fun CaptureBanner(
 
     ConnectBanner(
         title = title,
-        hint = hint,
         containerColor = container,
         contentColor = content,
         actionLabel = action,
@@ -375,6 +370,7 @@ private fun MeasurementRow(
     measurement: Measurement,
     unit: LengthUnit,
     locale: Locale,
+    highlighted: Boolean,
     onEdit: () -> Unit,
     onEditComment: () -> Unit,
     onDelete: () -> Unit,
@@ -397,19 +393,36 @@ private fun MeasurementRow(
         onClick = onEdit,
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = if (highlighted) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
+        },
+        contentColor = if (highlighted) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
     ) {
         Row(
-            modifier = Modifier.padding(start = 16.dp, top = 10.dp, bottom = 10.dp, end = 4.dp),
+            modifier = Modifier.padding(
+                start = 16.dp,
+                top = 10.dp,
+                bottom = 10.dp,
+                end = 4.dp,
+            ),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Icon(
                 painter = painterResource(sourceIcon),
                 contentDescription = sourceLabel,
-                modifier = Modifier.size(18.dp),
-                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(if (highlighted) 22.dp else 18.dp),
+                tint = if (highlighted) {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
             )
             Column(
                 modifier = Modifier.weight(1f),
@@ -418,9 +431,16 @@ private fun MeasurementRow(
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
                         text = Length.format(measurement.valueMm, unit),
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontFamily = FontFamily.Monospace,
-                        ),
+                        style = if (highlighted) {
+                            MaterialTheme.typography.displaySmall.copy(
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        } else {
+                            MaterialTheme.typography.titleLarge.copy(
+                                fontFamily = FontFamily.Monospace,
+                            )
+                        },
                     )
                     Text(
                         text = stringResource(unit.labelRes()),

@@ -484,6 +484,121 @@ class PlanEditingTest {
         assertTrue(removed.edges.none { it.id == edge.id })
     }
 
+    @Test
+    fun splitEdgeReplacesItWithTwoIndependentEdges() {
+        val plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
+        val edge = plan.edges.single()
+
+        val split = PlanEditing.splitEdge(plan, edge.id, PlanPoint(5.4, 2.3), ids)
+
+        val edges = split.contours.single().edges
+        assertEquals(2, edges.size)
+        assertEquals(3, split.nodes.size)
+        assertEquals(edge.id, edges[0].id)
+        assertEquals(edge.startNodeId, edges[0].startNodeId)
+        assertEquals(edge.endNodeId, edges[1].endNodeId)
+        assertEquals(edges[0].endNodeId, edges[1].startNodeId)
+        assertTrue(edges[0].id != edges[1].id)
+        // The point stays where the wall was touched instead of jumping to a grid crossing.
+        assertEquals(5.4, positionOf(split, edges[0].endNodeId)?.x ?: 0.0, 1e-9)
+        assertEquals(2.0, positionOf(split, edges[0].endNodeId)?.y ?: 0.0, 1e-9)
+    }
+
+    @Test
+    fun splitEdgeKeepsContourOrderAndClosure() {
+        val plan = square()
+        val first = plan.contours.single().edges.first()
+
+        val split = PlanEditing.splitEdge(plan, first.id, PlanPoint(5.0, 2.0), ids)
+
+        assertEquals(1, split.contours.size)
+        assertEquals(5, split.edgeCount)
+        assertTrue(split.contours.single().isClosed)
+        assertEquals(first.id, split.contours.single().edges.first().id)
+    }
+
+    @Test
+    fun splitEdgeWorksOnMiddleEdgeOfAnOpenContour() {
+        var plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
+        plan = segment(plan, 8.0, 2.0, 8.0, 9.0)
+        plan = segment(plan, 8.0, 9.0, 2.0, 9.0)
+        val before = plan.contours.single().edges
+        val middle = before[1]
+
+        val split = PlanEditing.splitEdge(plan, middle.id, PlanPoint(8.2, 5.6), ids)
+
+        val edges = split.contours.single().edges
+        assertEquals(4, edges.size)
+        assertEquals(before[0], edges[0])
+        assertEquals(before[2], edges[3])
+        assertEquals(middle.id, edges[1].id)
+        assertEquals(8.0, positionOf(split, edges[1].endNodeId)?.x ?: 0.0, 1e-9)
+        assertEquals(5.6, positionOf(split, edges[1].endNodeId)?.y ?: 0.0, 1e-9)
+        assertEquals(edges[1].endNodeId, edges[2].startNodeId)
+    }
+
+    @Test
+    fun splitEdgeRemovesDimensionFromBothHalves() {
+        val plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
+        val edge = plan.edges.single()
+        val annotated = PlanEditing.setDimension(
+            document = plan,
+            edgeId = edge.id,
+            dimension = PlanDimension(
+                valueMm = "3200",
+                source = MeasurementSource.MANUAL,
+                updatedAt = 2_000L,
+            ),
+        )
+
+        val split = PlanEditing.splitEdge(annotated, edge.id, PlanPoint(5.0, 2.0), ids)
+
+        assertEquals(2, split.edgeCount)
+        assertTrue(split.edges.all { it.dimension == null })
+    }
+
+    @Test
+    fun splitEdgeKeepsSlantedWallStraight() {
+        val plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 6.0)
+        val edge = plan.edges.single()
+
+        val split = PlanEditing.splitEdge(plan, edge.id, PlanPoint(4.0, 2.5), ids)
+
+        val middle = split.nodes.first { it.id != edge.startNodeId && it.id != edge.endNodeId }
+        // The inserted node keeps the exact projection: rounding it to the grid would bend the
+        // wall, which a window mark must not do.
+        assertEquals(2.0 + (middle.x - 2.0) * 2.0 / 3.0, middle.y, 1e-9)
+        assertTrue(middle.x % 1.0 != 0.0)
+        assertEquals(PlanPoint(2.0, 2.0), positionOf(split, edge.startNodeId))
+        assertEquals(PlanPoint(8.0, 6.0), positionOf(split, edge.endNodeId))
+    }
+
+    @Test
+    fun splitEdgeIgnoresPointTooCloseToAnEnd() {
+        val plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
+        val edge = plan.edges.single()
+
+        assertSame(plan, PlanEditing.splitEdge(plan, edge.id, PlanPoint(2.4, 2.0), ids))
+        assertSame(plan, PlanEditing.splitEdge(plan, edge.id, PlanPoint(7.8, 2.0), ids))
+    }
+
+    @Test
+    fun canSplitEdgeMatchesWhatSplitAccepts() {
+        val plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
+        val edge = plan.edges.single()
+
+        assertTrue(PlanEditing.canSplitEdge(plan, edge.id, PlanPoint(5.0, 2.0)))
+        assertFalse(PlanEditing.canSplitEdge(plan, edge.id, PlanPoint(2.4, 2.0)))
+        assertFalse(PlanEditing.canSplitEdge(plan, "missing", PlanPoint(5.0, 2.0)))
+    }
+
+    @Test
+    fun splitEdgeIgnoresUnknownEdge() {
+        val plan = square()
+
+        assertSame(plan, PlanEditing.splitEdge(plan, "missing", PlanPoint(5.0, 2.0), ids))
+    }
+
     private fun segment(
         plan: PlanDocument,
         fromX: Double,

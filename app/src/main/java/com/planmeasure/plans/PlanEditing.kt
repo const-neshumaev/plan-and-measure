@@ -1,12 +1,15 @@
 package com.planmeasure.plans
 
+import kotlin.math.hypot
+
 /**
  * Applies drawing and editing gestures to a plan.
  *
  * One drawing gesture adds one edge. The edge continues the contour that ends at its start node,
  * otherwise it starts a new contour. Ending an edge on the first node of a contour closes it.
- * Editing moves a node, which drags every edge that touches it, slides one edge as a whole, or
- * removes one edge. Anything that leaves the sheet grows it, see [PlanGeometry.growWorldToFit].
+ * Editing moves a node, which drags every edge that touches it, slides one edge as a whole,
+ * removes one edge, or inserts a node on an edge and thus splits it into two independent edges.
+ * Anything that leaves the sheet grows it, see [PlanGeometry.growWorldToFit].
  *
  * Dimensions are annotations of edges: attaching or removing one never changes coordinates
  * (ADR 0007).
@@ -160,6 +163,102 @@ object PlanEditing {
 
         return document.copy(contours = contours).withoutUnusedNodes()
     }
+
+    /**
+     * Inserts a node on [edgeId] and replaces the edge with two independent edges.
+     *
+     * The node is placed at [at] projected onto the wall, so the shape does not change. The point
+     * stays where the user touched, even on a grid-aligned wall, so its coordinate may be
+     * fractional. Snapping it to the grid would move the mark away from the touch and, on a
+     * slanted wall, bend the wall itself (ADR 0010).
+     *
+     * The first half keeps the id of the original edge, the second gets a new one. Both halves
+     * lose the dimension: after a split the wall the dimension described no longer exists, and
+     * moving the value to one half would silently turn "the wall is 3 m" into "a part of the wall
+     * is 3 m". The caller warns the user before calling this function; the split is one undo step,
+     * so undo restores the edge together with its dimension.
+     *
+     * The sheet does not grow, because the new node lies inside the wall. A tap closer than
+     * [PlanGeometry.MIN_SEGMENT] to an end is ignored: the stub would be invisible and impossible
+     * to pick out of the two walls. Returns the same instance when the edge is unknown or no valid
+     * point is left.
+     */
+    fun splitEdge(
+        document: PlanDocument,
+        edgeId: String,
+        at: PlanPoint,
+        newId: () -> String,
+    ): PlanDocument {
+        val split = edgeSplit(document, edgeId, at) ?: return document
+        val edge = split.edge
+
+        val node = PlanNode(id = newId(), x = split.point.x, y = split.point.y)
+        val first = edge.copy(endNodeId = node.id, dimension = null)
+        val second = PlanEdge(
+            id = newId(),
+            startNodeId = node.id,
+            endNodeId = edge.endNodeId,
+        )
+
+        var replaced = false
+        val contours = document.contours.map { contour ->
+            if (contour.edges.none { it.id == edgeId }) {
+                contour
+            } else {
+                contour.copy(
+                    edges = contour.edges.flatMap { current ->
+                        if (current.id == edgeId) {
+                            replaced = true
+                            listOf(first, second)
+                        } else {
+                            listOf(current)
+                        }
+                    },
+                )
+            }
+        }
+        if (!replaced) return document
+
+        return document.copy(nodes = document.nodes + node, contours = contours)
+    }
+
+    /**
+     * Whether [splitEdge] would change [document].
+     *
+     * The screen asks this before warning about a dimension, so a tap too close to an end does not
+     * promise a split that is then silently ignored.
+     */
+    fun canSplitEdge(document: PlanDocument, edgeId: String, at: PlanPoint): Boolean =
+        edgeSplit(document, edgeId, at) != null
+
+    /** Where [edgeId] would be split, or `null` when no valid point is left. */
+    private fun edgeSplit(
+        document: PlanDocument,
+        edgeId: String,
+        at: PlanPoint,
+    ): EdgeSplit? {
+        val edge = document.edges.firstOrNull { it.id == edgeId } ?: return null
+        val start = document.nodes.firstOrNull { it.id == edge.startNodeId } ?: return null
+        val end = document.nodes.firstOrNull { it.id == edge.endNodeId } ?: return null
+        val startPoint = PlanPoint(start.x, start.y)
+        val endPoint = PlanPoint(end.x, end.y)
+        if (distance(startPoint, endPoint) < 2 * PlanGeometry.MIN_SEGMENT) return null
+
+        val projected = PlanGeometry.projectOnEdge(document.nodes, edge, at) ?: return null
+        if (
+            distance(startPoint, projected) < PlanGeometry.MIN_SEGMENT ||
+            distance(projected, endPoint) < PlanGeometry.MIN_SEGMENT
+        ) {
+            return null
+        }
+        return EdgeSplit(edge, projected)
+    }
+
+    private fun distance(first: PlanPoint, second: PlanPoint): Double =
+        hypot(second.x - first.x, second.y - first.y)
+
+    /** Edge picked for a split and the point of it where the new node goes. */
+    private data class EdgeSplit(val edge: PlanEdge, val point: PlanPoint)
 
     /**
      * Splits edges, whose order is preserved, into maximal chains: each edge of a chain starts
