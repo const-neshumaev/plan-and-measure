@@ -48,11 +48,15 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.planmeasure.LabViewModel
 import com.planmeasure.R
+import com.planmeasure.plans.PlanDimension
 import com.planmeasure.plans.PlanDocument
+import com.planmeasure.plans.PlanEditing
+import com.planmeasure.plans.PlanPoint
 import com.planmeasure.plans.PlansViewModel
 import com.planmeasure.ui.components.ConnectBanner
 import com.planmeasure.ui.components.ListNameDialog
 import com.planmeasure.ui.components.UnitBar
+import com.planmeasure.ui.components.labelRes
 import com.planmeasure.units.Length
 import com.planmeasure.units.LengthUnit
 
@@ -83,6 +87,7 @@ fun PlanEditorScreen(
     var showRename by rememberSaveable { mutableStateOf(false) }
     var showClear by rememberSaveable { mutableStateOf(false) }
     var showDelete by rememberSaveable { mutableStateOf(false) }
+    var pendingSplit by remember { mutableStateOf<PendingEdgeSplit?>(null) }
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
 
     // The selection must not outlive its edge: undo or a full clear removes it.
@@ -121,6 +126,17 @@ fun PlanEditorScreen(
         if (id != selectedEdgeId) {
             commitDimension()
             selectedEdgeId = id
+        }
+    }
+
+    // Splitting a measured wall drops its dimension: the wall it described stops existing. The
+    // user confirms the loss first; the split itself is one undo step, so undo restores both.
+    val splitEdge: (edgeId: String, at: PlanPoint) -> Unit = { id, at ->
+        val dimension = plan.edges.firstOrNull { it.id == id }?.dimension
+        if (dimension != null && PlanEditing.canSplitEdge(plan, id, at)) {
+            pendingSplit = PendingEdgeSplit(id, at, dimension)
+        } else {
+            viewModel.splitEdge(id, at)
         }
     }
 
@@ -318,6 +334,7 @@ fun PlanEditorScreen(
                     onMoveNode = viewModel::moveNode,
                     onMoveEdge = viewModel::moveEdge,
                     onSelectEdge = selectEdge,
+                    onSplitEdge = splitEdge,
                     selectedEdgeId = selectedEdge?.id,
                     showGrid = showGrid,
                     viewport = viewport,
@@ -488,7 +505,39 @@ fun PlanEditorScreen(
             },
         )
     }
+
+    pendingSplit?.let { split ->
+        val dimension = "${Length.format(split.dimension.valueMm, plan.unit)} " +
+            stringResource(plan.unit.labelRes())
+        AlertDialog(
+            onDismissRequest = { pendingSplit = null },
+            title = { Text(stringResource(R.string.plan_split_title)) },
+            text = { Text(stringResource(R.string.plan_split_text, dimension)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingSplit = null
+                        viewModel.splitEdge(split.edgeId, split.at)
+                    },
+                ) {
+                    Text(stringResource(R.string.plan_split_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingSplit = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
+    }
 }
+
+/** Point insertion waiting for the user to confirm that the wall's dimension is removed. */
+private data class PendingEdgeSplit(
+    val edgeId: String,
+    val at: PlanPoint,
+    val dimension: PlanDimension,
+)
 
 /** Link status above the sheet; a reading is useful only while the rangefinder is connected. */
 @Composable
@@ -500,16 +549,9 @@ private fun PlanConnectBanner(
     ConnectBanner(
         title = stringResource(
             if (connected) {
-                R.string.plan_rangefinder_connected
+                R.string.rangefinder_connected
             } else {
-                R.string.plan_rangefinder_disconnected
-            },
-        ),
-        hint = stringResource(
-            if (connected) {
-                R.string.plan_rangefinder_connected_hint
-            } else {
-                R.string.plan_rangefinder_disconnected_hint
+                R.string.rangefinder_disconnected
             },
         ),
         containerColor = if (connected) {
@@ -522,7 +564,7 @@ private fun PlanConnectBanner(
         } else {
             MaterialTheme.colorScheme.onSurfaceVariant
         },
-        actionLabel = if (connected) null else stringResource(R.string.plan_rangefinder_connect),
+        actionLabel = if (connected) null else stringResource(R.string.rangefinder_connect),
         onAction = if (connected) null else onConnect,
         modifier = modifier,
     )

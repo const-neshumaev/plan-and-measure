@@ -17,10 +17,14 @@
     <string name="demo_banner">Демо-контент: функционал появится позже</string>
 
     <!-- Home -->
-    <string name="home_tagline">Замеры, фото и планы помещений</string>
+    <string name="home_tagline">Замеры, фото и планы</string>
     <string name="home_status_connected">Дальномер подключён</string>
     <string name="home_status_disconnected">Дальномер не подключён</string>
     <string name="home_status_connected_details">%1$s · MTU %2$d · %3$s</string>
+    <!-- Статус дальномера в списках измерений и планах -->
+    <string name="rangefinder_connected">Дальномер подключён</string>
+    <string name="rangefinder_disconnected">Дальномер не подключён</string>
+    <string name="rangefinder_connect">Подключить</string>
     <plurals name="services_count">
         <item quantity="one">%1$d сервис</item>
         <item quantity="few">%1$d сервиса</item>
@@ -54,7 +58,7 @@
     <string name="section_measurements">Измерения</string>
     <string name="section_measurements_details">Списки и измерения</string>
     <string name="section_plans">Планы</string>
-    <string name="section_plans_details">Схемы помещений от руки</string>
+    <string name="section_plans_details">Контуры от руки</string>
     <string name="section_projects">Проекты</string>
     <string name="section_projects_details">Помещения, планы и замеры</string>
     <string name="section_capture">Съёмка</string>
@@ -100,15 +104,9 @@
     <string name="measurement_error_create">Не удалось создать список</string>
     <string name="measurement_error_delete">Не удалось удалить список</string>
     <string name="measurement_error_load">Не удалось открыть список</string>
-    <string name="measurement_capture_on">Запись с дальномера</string>
-    <string name="measurement_capture_on_hint">Новые измерения добавляются автоматически.</string>
     <string name="measurement_capture_paused">Запись приостановлена</string>
-    <string name="measurement_capture_paused_hint">Измерения не записываются, пока запись не возобновится.</string>
     <string name="measurement_capture_pause">Пауза</string>
     <string name="measurement_capture_resume">Продолжить</string>
-    <string name="measurement_disconnected">Дальномер не подключён</string>
-    <string name="measurement_disconnected_hint">Введите значения вручную или подключите дальномер.</string>
-    <string name="measurement_connect">Подключить</string>
     <string name="measurement_source_rangefinder">С дальномера</string>
     <string name="measurement_source_manual">Введено вручную</string>
 
@@ -122,7 +120,7 @@
     <!-- Plans -->
     <string name="plan_new">Новый план</string>
     <string name="plan_name">Название плана</string>
-    <string name="plan_name_hint">Например, гостиная</string>
+    <string name="plan_name_hint">Например, эскиз</string>
     <string name="plan_default_name">План %1$s</string>
     <string name="plan_rename_title">Переименовать план</string>
     <string name="plan_delete_title">Удалить план?</string>
@@ -136,26 +134,24 @@
         <item quantity="other">%1$d грани</item>
     </plurals>
     <string name="plan_lists_empty_title">Сохранённых планов пока нет</string>
-    <string name="plan_lists_empty_text">Создайте план и нарисуйте контур помещения пальцем.</string>
-    <string name="plan_draw_hint">Проведите пальцем, чтобы нарисовать стену.\nЛиния ложится по сетке, а вблизи углов, кратных 45°, выравнивается точно по ним.\nДва пальца — зум и перемещение листа.</string>
+    <string name="plan_lists_empty_text">Создайте план и нарисуйте контур пальцем.</string>
+    <string name="plan_draw_hint">Проведите пальцем, чтобы нарисовать линию.\nЛиния ложится по сетке, а вблизи углов, кратных 45°, выравнивается точно по ним.\nКоснитесь линии, чтобы добавить точку.\nДва пальца — зум и перемещение листа.</string>
     <string name="plan_grid">Сетка</string>
     <string name="plan_fit_screen">Вписать в экран</string>
     <string name="plan_tool_draw">Рисование</string>
     <string name="plan_tool_edit">Правка</string>
     <string name="plan_tool_dimension">Размеры</string>
-    <string name="plan_edit_hint">Перетащите узел, чтобы изменить форму. Коснитесь линии, чтобы выделить её, удерживайте — чтобы сдвинуть.\nДва пальца — зум и перемещение листа.</string>
-    <string name="plan_dimension_hint">Коснитесь стены, чтобы задать размер.\nДва пальца — зум и перемещение листа.</string>
-    <string name="plan_dimension_title">Размер стены</string>
+    <string name="plan_edit_hint">Перетащите узел, чтобы изменить форму. Коснитесь линии, чтобы выделить её, удерживайте — чтобы сдвинуть. Повторное касание выделенной линии добавит точку.\nДва пальца — зум и перемещение листа.</string>
+    <string name="plan_dimension_hint">Коснитесь линии, чтобы задать размер.\nДва пальца — зум и перемещение листа.</string>
+    <string name="plan_dimension_title">Размер линии</string>
     <string name="plan_dimension_value">Длина</string>
     <string name="plan_dimension_delete">Удалить размер</string>
     <string name="plan_dimension_hint_connected">Следующее измерение с дальномера заменит значение.</string>
     <string name="plan_dimension_hint_disconnected">Дальномер не подключён. Введите значение вручную.</string>
-    <string name="plan_rangefinder_connected">Дальномер подключён</string>
-    <string name="plan_rangefinder_connected_hint">Откройте размер стены и снимите измерение.</string>
-    <string name="plan_rangefinder_disconnected">Дальномер не подключён</string>
-    <string name="plan_rangefinder_disconnected_hint">Введите размеры стен вручную или подключите дальномер.</string>
-    <string name="plan_rangefinder_connect">Подключить</string>
     <string name="plan_delete_edge">Удалить линию</string>
+    <string name="plan_split_title">Добавить точку</string>
+    <string name="plan_split_text">На линии задан размер %1$s. После добавления точки линия разделится, а размер удалится; «Отменить» вернёт и линию, и размер.</string>
+    <string name="plan_split_confirm">Добавить точку</string>
     <string name="plan_clear">Очистить чертёж</string>
     <string name="plan_clear_title">Очистить чертёж?</string>
     <string name="plan_clear_text">Все линии плана «%1$s» будут удалены.</string>

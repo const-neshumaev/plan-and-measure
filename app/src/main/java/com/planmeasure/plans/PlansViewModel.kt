@@ -193,6 +193,20 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
+     * Inserts a node on [edgeId] at [at], splitting the edge into two independent edges.
+     *
+     * The split is a normal undoable change, so undoing it brings back the edge and the dimension
+     * the split removed. The warning about the lost dimension belongs to the screen: it knows
+     * whether the picked edge carries one before asking for the split.
+     */
+    fun splitEdge(edgeId: String, at: PlanPoint) {
+        val current = _openPlan.value ?: return
+        val updated = PlanEditing.splitEdge(current, edgeId, at, ::newId)
+        if (updated === current) return
+        commit(updated.copy(updatedAt = System.currentTimeMillis()))
+    }
+
+    /**
      * Saves a manually entered dimension on [edgeId].
      *
      * The text is validated and canonicalized in the plan's unit by [LengthInput]; blank or

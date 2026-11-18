@@ -48,6 +48,17 @@ class MeasurementsViewModel(app: Application) : AndroidViewModel(app) {
     private val _capturePaused = MutableStateFlow(false)
     val capturePaused = _capturePaused.asStateFlow()
 
+    private val _lastAddedMeasurementId = MutableStateFlow<String?>(null)
+
+    /**
+     * Measurement added during this editing session, if any.
+     *
+     * The list screen makes its row stand out so the newest reading is unmistakable. Opening a
+     * list clears the marker: after reopening nothing is highlighted until another value arrives.
+     * Editing or restoring a value is not an addition and does not move the marker.
+     */
+    val lastAddedMeasurementId = _lastAddedMeasurementId.asStateFlow()
+
     private val _loading = MutableStateFlow(true)
     val loading = _loading.asStateFlow()
 
@@ -63,6 +74,7 @@ class MeasurementsViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun open(id: String) {
+        _lastAddedMeasurementId.value = null
         viewModelScope.launch {
             persistence.withLock {
                 val document = runCatching { repository.load(id) }.getOrNull()
@@ -79,6 +91,7 @@ class MeasurementsViewModel(app: Application) : AndroidViewModel(app) {
     fun close() {
         _openList.value = null
         _capturePaused.value = false
+        _lastAddedMeasurementId.value = null
     }
 
     fun createList(name: String) {
@@ -88,6 +101,7 @@ class MeasurementsViewModel(app: Application) : AndroidViewModel(app) {
                 runCatching { repository.create(name, lastUnit.load()) }
                     .onSuccess {
                         _capturePaused.value = false
+                        _lastAddedMeasurementId.value = null
                         _openList.value = it
                     }
                     .onFailure { report(R.string.measurement_error_create) }
@@ -174,6 +188,7 @@ class MeasurementsViewModel(app: Application) : AndroidViewModel(app) {
     fun deleteMeasurement(id: String): Measurement? {
         val current = _openList.value ?: return null
         val removed = current.measurements.firstOrNull { it.id == id } ?: return null
+        if (_lastAddedMeasurementId.value == id) _lastAddedMeasurementId.value = null
         commit(
             current.copy(
                 updatedAt = System.currentTimeMillis(),
@@ -205,6 +220,7 @@ class MeasurementsViewModel(app: Application) : AndroidViewModel(app) {
             createdAt = System.currentTimeMillis(),
             source = MeasurementSource.RANGFINDER,
         )
+        _lastAddedMeasurementId.value = measurement.id
         commit(
             current.copy(
                 updatedAt = measurement.createdAt,
@@ -228,6 +244,7 @@ class MeasurementsViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun append(measurement: Measurement) {
         val current = _openList.value ?: return
+        _lastAddedMeasurementId.value = measurement.id
         commit(
             current.copy(
                 updatedAt = measurement.createdAt,

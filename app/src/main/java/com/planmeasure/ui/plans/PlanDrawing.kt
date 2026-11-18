@@ -91,12 +91,15 @@ enum class PlanTool { Draw, Edit, Dimensions }
  *
  * A drag becomes one straight edge: the start snaps to a node or the grid, the direction to 45°
  * and the end to the grid. The callback receives raw world points and the magnet radius, because
- * the same rules must be applied by [com.planmeasure.plans.PlanEditing].
+ * the same rules must be applied by [com.planmeasure.plans.PlanEditing]. A tap without a drag
+ * inserts a point on the wall under the finger, which splits the wall into two edges.
  *
  * In [PlanTool.Edit] the finger can take three things:
  * - a node, grabbed on the first down and moved with the grid snap;
  * - an edge, grabbed after a long press and slid as a whole, so its direction does not change;
  * - empty space, where a tap only clears the selection.
+ *
+ * A tap on an edge selects it; a second tap on the already selected edge inserts a point there.
  *
  * In [PlanTool.Dimensions] a tap only selects a wall, because the same tap opens the dimension
  * card; nothing is dragged, and two fingers still move the view.
@@ -117,6 +120,7 @@ fun PlanCanvas(
     onMoveNode: (nodeId: String, to: PlanPoint, magnetRadius: Double) -> Unit,
     onMoveEdge: (edgeId: String, from: PlanPoint, to: PlanPoint) -> Unit,
     onSelectEdge: (edgeId: String?) -> Unit,
+    onSplitEdge: (edgeId: String, at: PlanPoint) -> Unit,
     modifier: Modifier = Modifier,
     selectedEdgeId: String? = null,
     showGrid: Boolean = true,
@@ -163,6 +167,9 @@ fun PlanCanvas(
     // callback through state; captured values would stay at the composition that created it.
     val liveViewport = rememberUpdatedState(viewport)
     val liveOnViewportChange = rememberUpdatedState(onViewportChange)
+    // The selection changes during the gesture (a long press selects the edge it grabbed), so the
+    // handler must read the current value instead of the one captured at installation.
+    val liveSelectedEdgeId = rememberUpdatedState(selectedEdgeId)
 
     // The rings repeat while the grab lasts: a single burst is easy to miss when the finger starts
     // moving at once.
@@ -194,6 +201,12 @@ fun PlanCanvas(
                 val padding = SheetMargin.toPx()
                 val transform = planTransform(canvas, world, liveViewport.value, padding)
                 val magnetRadius = (MagnetRadius.toPx() / transform.scale).toDouble()
+                val tappedEdge = PlanGeometry.nearestEdge(
+                    nodes = plan.nodes,
+                    contours = plan.contours,
+                    point = transform.toWorld(down.position),
+                    tolerance = (EdgeTapRadius.toPx() / transform.scale).toDouble(),
+                )
                 val start = PlanGeometry.snapStart(
                     nodes = plan.nodes,
                     raw = transform.toWorld(down.position),
@@ -250,6 +263,12 @@ fun PlanCanvas(
                             transform.toWorld(lastPosition),
                             magnetRadius,
                         )
+                    } else if (finished && !dragging && tappedEdge != null) {
+                        PlanGeometry.projectOnEdge(
+                            nodes = plan.nodes,
+                            edge = tappedEdge,
+                            point = transform.toWorld(down.position),
+                        )?.let { onSplitEdge(tappedEdge.id, it) }
                     }
                 }
             }
@@ -395,9 +414,20 @@ fun PlanCanvas(
                         when {
                             grabbedNode != null && nodeDrop != null && nodeWorld != null ->
                                 onMoveNode(grabbedNode.id, nodeWorld, magnetRadius)
-                            // A tap selects the edge under it; a tap on empty space clears it.
-                            candidate != null && !edgeGrabbed && !dragging ->
-                                onSelectEdge(candidate.edge.id)
+                            // The first tap selects the edge under it, a tap on the already
+                            // selected edge inserts a point, and a tap on empty space clears the
+                            // selection.
+                            candidate != null && !edgeGrabbed && !dragging -> {
+                                if (candidate.edge.id == liveSelectedEdgeId.value) {
+                                    PlanGeometry.projectOnEdge(
+                                        nodes = plan.nodes,
+                                        edge = candidate.edge,
+                                        point = downWorld,
+                                    )?.let { onSplitEdge(candidate.edge.id, it) }
+                                } else {
+                                    onSelectEdge(candidate.edge.id)
+                                }
+                            }
                             candidate == null && grabbedNode == null && !dragging ->
                                 onSelectEdge(null)
                             candidate != null && edgeTarget != null ->
