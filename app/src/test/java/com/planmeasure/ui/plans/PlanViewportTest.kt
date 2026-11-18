@@ -11,7 +11,9 @@ import org.junit.Test
 class PlanViewportTest {
 
     private val canvas = Size(400f, 800f)
-    private val world = PlanSize()
+
+    // Explicit, so the arithmetic does not depend on the default sheet of a new plan.
+    private val world = PlanSize(width = 20.0, height = 28.0)
     private val padding = 10f
 
     @Test
@@ -98,7 +100,7 @@ class PlanViewportTest {
             )
         }
 
-        assertEquals(8f, viewport.zoom, 0.001f)
+        assertEquals(16f, viewport.zoom, 0.001f)
     }
 
     @Test
