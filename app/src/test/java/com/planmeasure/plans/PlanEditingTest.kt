@@ -120,10 +120,10 @@ class PlanEditingTest {
         val plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
         val node = plan.nodes.first { it.x == 8.0 }
 
-        val moved = PlanEditing.moveNode(plan, node.id, PlanPoint(21.0, 30.0))
+        val moved = PlanEditing.moveNode(plan, node.id, PlanPoint(221.0, 300.0))
 
-        assertEquals(PlanPoint(21.0, 30.0), positionOf(moved, node.id))
-        assertEquals(PlanSize(width = 24.0, height = 32.0), moved.world)
+        assertEquals(PlanPoint(221.0, 300.0), positionOf(moved, node.id))
+        assertEquals(PlanSize(width = 240.0, height = 300.0), moved.world)
     }
 
     @Test
@@ -134,16 +134,16 @@ class PlanEditingTest {
 
         val moved = PlanEditing.moveNode(plan, left.id, PlanPoint(-1.0, 2.0))
 
-        assertEquals(PlanPoint(3.0, 2.0), positionOf(moved, left.id))
-        assertEquals(PlanPoint(12.0, 2.0), positionOf(moved, right.id))
+        assertEquals(PlanPoint(19.0, 2.0), positionOf(moved, left.id))
+        assertEquals(PlanPoint(28.0, 2.0), positionOf(moved, right.id))
         assertEquals(PlanSize(), moved.world)
     }
 
     @Test
     fun addsSegmentPastBorderGrowsSheet() {
-        val plan = segment(emptyPlan(), 18.0, 2.0, 25.0, 2.0)
+        val plan = segment(emptyPlan(), 198.0, 2.0, 225.0, 2.0)
 
-        assertEquals(PlanSize(width = 28.0, height = 28.0), plan.world)
+        assertEquals(PlanSize(width = 240.0, height = 280.0), plan.world)
         assertEquals(2, plan.nodes.size)
     }
 
@@ -286,9 +286,10 @@ class PlanEditingTest {
         val plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
         val edge = plan.edges.single()
 
-        val moved = PlanEditing.moveEdge(plan, edge.id, PlanPoint(5.0, 2.0), PlanPoint(99.0, 2.0))
+        val moved = PlanEditing.moveEdge(plan, edge.id, PlanPoint(5.0, 2.0), PlanPoint(500.0, 2.0))
 
-        assertEquals(PlanPoint(14.0, 2.0), positionOf(moved, edge.startNodeId))
+        // The edge stops at the sheet border without changing its length.
+        assertEquals(PlanPoint(PlanWorld.DEFAULT_WIDTH - 6.0, 2.0), positionOf(moved, edge.startNodeId))
         assertEquals(PlanPoint(PlanWorld.DEFAULT_WIDTH, 2.0), positionOf(moved, edge.endNodeId))
         assertEquals(PlanSize(), moved.world)
     }
@@ -375,7 +376,7 @@ class PlanEditingTest {
 
         val fitted = PlanEditing.fitWorldToDrawing(plan)
 
-        assertEquals(PlanSize(width = 28.0, height = 300.0), fitted.world)
+        assertEquals(PlanSize(width = 40.0, height = 300.0), fitted.world)
         assertEquals(PlanPoint(25.0, 300.0), positionOf(fitted, "a"))
         assertSame(fitted, PlanEditing.fitWorldToDrawing(fitted))
     }

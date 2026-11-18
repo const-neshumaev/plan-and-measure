@@ -15,8 +15,14 @@ import kotlin.math.min
  */
 private const val MIN_ZOOM = 0.5f
 
-/** Highest zoom relative to the fitted sheet; the value is calibrated in use. */
-private const val MAX_ZOOM = 8f
+/**
+ * Highest zoom relative to the fitted sheet.
+ *
+ * The default sheet is 200 units wide, so on a phone one grid cell is about 24 dp at this zoom: the
+ * finest step of the drawing is a comfortable touch target there, and zooming further would only
+ * enlarge a grid the user cannot place anyway. The value is calibrated in use (ADR 0011).
+ */
+private const val MAX_ZOOM = 16f
 
 private const val FIT_TOLERANCE = 0.001f
 

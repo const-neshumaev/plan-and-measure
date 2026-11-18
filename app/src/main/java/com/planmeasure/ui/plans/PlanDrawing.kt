@@ -75,8 +75,17 @@ private const val LONG_PRESS_GRAB_MILLIS = 300L
 private const val MAJOR_GRID_STEP = 5
 private const val FIT_REFIT_MILLIS = 250
 
-/** Below this spacing the minor grid lines merge into a solid field and are not drawn. */
-private val MinGridSpacing = 6.dp
+/** Below this spacing the grid lines merge into a solid field and the grid is not drawn. */
+private val MinGridSpacing = 8.dp
+
+/**
+ * Steps of the grid, from one unit to the coordinate limit.
+ *
+ * The drawn step is the finest one whose lines stay readable, and every [MAJOR_GRID_STEP]-th line
+ * of that step is emphasized. Neighbouring steps differ by two or two and a half times, so the
+ * density looks the same at any zoom instead of switching abruptly or turning into a solid field.
+ */
+private val GridSteps = listOf(1, 2, 5, 10, 20, 50, 100, 200, 500, 1_000, 2_000, 5_000, 10_000)
 
 /**
  * What a drag on the canvas does.
@@ -760,7 +769,7 @@ fun PlanThumbnail(plan: PlanDocument, modifier: Modifier = Modifier) {
  * outside the canvas. Minor lines are dropped when they would merge into a solid field.
  */
 private fun DrawScope.drawPlanGrid(transform: WorldTransform, world: PlanSize, color: Color) {
-    val step = gridStep(transform.scale) ?: return
+    val step = gridStepFor(transform.scale, MinGridSpacing.toPx()) ?: return
     val topLeft = transform.topLeft()
     val sheet = transform.size(world)
     val scale = transform.scale
@@ -771,7 +780,7 @@ private fun DrawScope.drawPlanGrid(transform: WorldTransform, world: PlanSize, c
     for (x in alignedRange(firstX, lastX, step)) {
         val px = topLeft.x + x * scale
         drawLine(
-            color = color.copy(alpha = gridAlpha(x)),
+            color = color.copy(alpha = gridLineAlpha(x, step)),
             start = Offset(px, topLeft.y),
             end = Offset(px, topLeft.y + sheet.height),
             strokeWidth = strokeWidth,
@@ -783,7 +792,7 @@ private fun DrawScope.drawPlanGrid(transform: WorldTransform, world: PlanSize, c
     for (y in alignedRange(firstY, lastY, step)) {
         val py = topLeft.y + y * scale
         drawLine(
-            color = color.copy(alpha = gridAlpha(y)),
+            color = color.copy(alpha = gridLineAlpha(y, step)),
             start = Offset(topLeft.x, py),
             end = Offset(topLeft.x + sheet.width, py),
             strokeWidth = strokeWidth,
@@ -792,18 +801,15 @@ private fun DrawScope.drawPlanGrid(transform: WorldTransform, world: PlanSize, c
 }
 
 /** Grid step that keeps the lines readable at [scale] pixels per unit, or `null` when none does. */
-private fun DrawScope.gridStep(scale: Float): Int? {
-    val minimum = MinGridSpacing.toPx()
-    return when {
-        scale >= minimum -> 1
-        scale * MAJOR_GRID_STEP >= minimum -> MAJOR_GRID_STEP
-        else -> null
-    }
+internal fun gridStepFor(scale: Float, minimumSpacing: Float): Int? {
+    if (!scale.isFinite() || scale <= 0f) return null
+    return GridSteps.firstOrNull { it * scale >= minimumSpacing }
 }
+
+/** Alpha of the grid line at [index]; every [MAJOR_GRID_STEP]-th line of [step] is emphasized. */
+internal fun gridLineAlpha(index: Int, step: Int): Float =
+    if (index % (step * MAJOR_GRID_STEP) == 0) 0.5f else 0.22f
 
 /** Indices of [first]..[last] that are multiples of [step]. */
 private fun alignedRange(first: Int, last: Int, step: Int): IntProgression =
     (first - first % step)..last step step
-
-private fun gridAlpha(index: Int): Float =
-    if (index % MAJOR_GRID_STEP == 0) 0.5f else 0.22f

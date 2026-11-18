@@ -313,15 +313,21 @@ class PlanGeometryTest {
 
     @Test
     fun growsSheetToFitNodePastBorder() {
-        val growth = PlanGeometry.growWorldToFit(PlanSize(), listOf(PlanPoint(21.0, 4.0)))
+        val growth = PlanGeometry.growWorldToFit(PlanSize(), listOf(PlanPoint(221.0, 4.0)))
 
-        assertEquals(PlanSize(width = 24.0, height = 28.0), growth?.size)
+        assertEquals(PlanSize(width = 240.0, height = 280.0), growth?.size)
         assertEquals(PlanPoint(0.0, 0.0), growth?.shift)
     }
 
     @Test
     fun doesNotGrowSheetWhenDrawingFits() {
         assertNull(PlanGeometry.growWorldToFit(PlanSize(), listOf(PlanPoint(20.0, 28.0))))
+        assertNull(
+            PlanGeometry.growWorldToFit(
+                PlanSize(),
+                listOf(PlanPoint(PlanWorld.DEFAULT_WIDTH, PlanWorld.DEFAULT_HEIGHT)),
+            ),
+        )
         assertNull(PlanGeometry.growWorldToFit(PlanSize(), emptyList()))
     }
 
@@ -332,9 +338,9 @@ class PlanGeometryTest {
             points = listOf(PlanPoint(-1.0, 2.0), PlanPoint(19.0, 2.0)),
         )
 
-        // The drawing moves right by a whole step, and the sheet grows to keep the far node.
-        assertEquals(PlanPoint(4.0, 0.0), growth?.shift)
-        assertEquals(PlanSize(width = 24.0, height = 28.0), growth?.size)
+        // The drawing moves right by a whole step; the default sheet already has room for it.
+        assertEquals(PlanPoint(20.0, 0.0), growth?.shift)
+        assertEquals(PlanSize(), growth?.size)
     }
 
     @Test
@@ -345,7 +351,7 @@ class PlanGeometryTest {
         )
 
         // The sheet has to contain the node that caused the growth; a cap here left it outside.
-        assertEquals(PlanSize(width = 88.0, height = 300.0), growth?.size)
+        assertEquals(PlanSize(width = 200.0, height = 300.0), growth?.size)
     }
 
     @Test

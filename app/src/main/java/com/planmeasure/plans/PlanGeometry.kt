@@ -20,13 +20,21 @@ data class PlanPoint(val x: Double, val y: Double)
  * A plan starts on a [DEFAULT_WIDTH] x [DEFAULT_HEIGHT] sheet of grid units. The sheet belongs to
  * the document and grows when a wall is pulled past its border; it is never derived from the
  * screen, so the same drawing keeps its proportions on any device and in any orientation.
+ *
+ * The default size is the resolution of the drawing: a room drawn across the whole canvas takes
+ * most of the sheet, so the smallest feature is one unit of that room. The sheet is deliberately
+ * much larger than a sketch of one room needs, otherwise details have to wait for the zoom, and
+ * zoom alone cannot make the grid finer (ADR 0011).
  */
 object PlanWorld {
-    const val DEFAULT_WIDTH = 20.0
-    const val DEFAULT_HEIGHT = 28.0
+    const val DEFAULT_WIDTH = 200.0
+    const val DEFAULT_HEIGHT = 280.0
 
-    /** The sheet grows in whole steps, so its border stays on the grid. */
-    const val GROWTH_STEP = 4.0
+    /**
+     * The sheet grows in whole steps, so its border stays on the grid. A step is a tenth of the
+     * default size: the grown sheet keeps round dimensions instead of gaining a sliver.
+     */
+    const val GROWTH_STEP = 20.0
 
     /**
      * Sanity limit of a single coordinate, not of the sheet.
