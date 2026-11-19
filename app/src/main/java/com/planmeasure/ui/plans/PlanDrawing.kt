@@ -44,6 +44,7 @@ import com.planmeasure.plans.PlanDocument
 import com.planmeasure.plans.PlanEdge
 import com.planmeasure.plans.PlanGeometry
 import com.planmeasure.plans.PlanPoint
+import com.planmeasure.plans.PlanScale
 import com.planmeasure.plans.PlanSize
 import com.planmeasure.ui.components.labelRes
 import com.planmeasure.units.Length
@@ -74,6 +75,9 @@ private const val RIPPLE_PERIOD_MILLIS = 1100
 private const val LONG_PRESS_GRAB_MILLIS = 300L
 private const val MAJOR_GRID_STEP = 5
 private const val FIT_REFIT_MILLIS = 250
+
+/** Prefix of a dimension the drawing does not match; the symbol is the same in every language. */
+private const val MISMATCH_MARK = "≈ "
 
 /** Below this spacing the grid lines merge into a solid field and the grid is not drawn. */
 private val MinGridSpacing = 8.dp
@@ -142,6 +146,8 @@ fun PlanCanvas(
     val accentColor = MaterialTheme.colorScheme.primary
     val labelFill = MaterialTheme.colorScheme.primaryContainer
     val labelContent = MaterialTheme.colorScheme.onPrimaryContainer
+    val mismatchFill = MaterialTheme.colorScheme.errorContainer
+    val mismatchContent = MaterialTheme.colorScheme.onErrorContainer
     val haptic = LocalHapticFeedback.current
 
     // Dimension text is laid out in the composition, not on every frame: measuring texts during
@@ -149,9 +155,13 @@ fun PlanCanvas(
     val textMeasurer = rememberTextMeasurer()
     val labelStyle = MaterialTheme.typography.labelMedium
     val unitLabel = stringResource(plan.unit.labelRes())
+    // A dimension the fixed angles cannot hold stays a label, and the drawing disagrees with it
+    // (ADR 0012). The mark keeps the value readable while showing that the wall is drawn differently.
+    val mismatched = remember(plan) { PlanScale.mismatchedEdgeIds(plan) }
     val labelLayouts = plan.edges.mapNotNull { edge ->
         val dimension = edge.dimension ?: return@mapNotNull null
-        val text = "${Length.format(dimension.valueMm, plan.unit)} $unitLabel"
+        val mark = if (edge.id in mismatched) MISMATCH_MARK else ""
+        val text = "$mark${Length.format(dimension.valueMm, plan.unit)} $unitLabel"
         edge.id to textMeasurer.measure(AnnotatedString(text), labelStyle)
     }.toMap()
 
@@ -649,15 +659,16 @@ fun PlanCanvas(
             ).forEach { label ->
                 val layout = labelLayouts[label.edgeId] ?: return@forEach
                 val height = layout.size.height + 2 * paddingY
+                val differs = label.edgeId in mismatched
                 drawRoundRect(
-                    color = labelFill,
+                    color = if (differs) mismatchFill else labelFill,
                     topLeft = Offset(label.topLeft.x - paddingX, label.topLeft.y - paddingY),
                     size = Size(layout.size.width + 2 * paddingX, height),
                     cornerRadius = CornerRadius(height / 2f),
                 )
                 drawText(
                     textLayoutResult = layout,
-                    color = labelContent,
+                    color = if (differs) mismatchContent else labelContent,
                     topLeft = label.topLeft,
                 )
             }

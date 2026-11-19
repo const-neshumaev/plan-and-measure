@@ -138,6 +138,8 @@
     <string name="plan_dimension_delete">Delete dimension</string>
     <string name="plan_dimension_hint_connected">The next rangefinder reading replaces this value.</string>
     <string name="plan_dimension_hint_disconnected">The rangefinder is not connected. Enter the value manually.</string>
+    <string name="plan_dimension_scale">Scale: one cell ≈ %1$s</string>
+    <string name="plan_dimension_mismatch">Does not match the drawing: %1$s</string>
     <string name="plan_delete_edge">Delete line</string>
     <string name="plan_split_title">Add point</string>
     <string name="plan_split_text">The line has a dimension %1$s. Adding a point splits the line and removes the dimension; Undo restores both.</string>

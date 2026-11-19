@@ -144,6 +144,8 @@
     <string name="plan_dimension_delete">Удалить размер</string>
     <string name="plan_dimension_hint_connected">Следующее измерение с дальномера заменит значение.</string>
     <string name="plan_dimension_hint_disconnected">Дальномер не подключён. Введите значение вручную.</string>
+    <string name="plan_dimension_scale">Масштаб: одна клетка ≈ %1$s</string>
+    <string name="plan_dimension_mismatch">Не сходится с чертежом: %1$s</string>
     <string name="plan_delete_edge">Удалить линию</string>
     <string name="plan_split_title">Добавить точку</string>
     <string name="plan_split_text">На линии задан размер %1$s. После добавления точки линия разделится, а размер удалится; «Отменить» вернёт и линию, и размер.</string>
