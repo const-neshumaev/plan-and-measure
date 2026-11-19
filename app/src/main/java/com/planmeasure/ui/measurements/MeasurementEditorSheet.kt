@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,27 +27,29 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.planmeasure.R
 import com.planmeasure.measurements.Measurement
 import com.planmeasure.units.Length
 import com.planmeasure.units.LengthInput
 import com.planmeasure.units.LengthUnit
-import com.planmeasure.ui.components.labelRes
+import com.planmeasure.ui.components.LengthInputField
 
-private const val MAX_VALUE_LENGTH = 12
 private const val MAX_COMMENT_LENGTH = 200
 
 /**
  * Bottom sheet for adding or editing one measurement.
  *
  * The sheet works in the unit of the open list; changing that unit is the job of the bar above the
- * list, so the sheet stays compact. In add mode it stays open after each save so that several
- * values can be typed without reopening it, and the focus stays in place.
+ * list, so the sheet stays compact. Adding a value closes the sheet, so the next value is entered
+ * from a fresh empty field.
+ *
+ * The typed text is handed over as is: the ViewModel canonicalizes it once in the list's unit.
+ * Converting here as well would apply the unit twice.
+ *
+ * The value field is [LengthInputField]: it masks input that cannot belong to a length in the
+ * list's unit instead of turning the field red.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,7 +67,6 @@ fun MeasurementEditorSheet(
     }
     var comment by rememberSaveable(editing?.id) { mutableStateOf(editing?.comment.orEmpty()) }
     val normalized = LengthInput.normalize(value, unit)
-    val showError = value.isNotBlank() && normalized == null
     val valueFocusRequester = remember { FocusRequester() }
     val commentFocusRequester = remember { FocusRequester() }
 
@@ -95,34 +95,13 @@ fun MeasurementEditorSheet(
                 style = MaterialTheme.typography.titleLarge,
             )
 
-            OutlinedTextField(
+            LengthInputField(
                 value = value,
-                onValueChange = { value = it.take(MAX_VALUE_LENGTH) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .focusRequester(valueFocusRequester),
-                label = { Text(stringResource(R.string.measurement_value_label)) },
-                placeholder = { Text(stringResource(R.string.measurement_value_hint)) },
-                suffix = { Text(stringResource(unit.labelRes())) },
-                singleLine = true,
-                isError = showError,
-                supportingText = if (showError) {
-                    {
-                        Text(
-                            pluralStringResource(
-                                R.plurals.measurement_value_error,
-                                unit.displayDecimals,
-                                unit.displayDecimals,
-                            ),
-                        )
-                    }
-                } else {
-                    null
-                },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Decimal,
-                    imeAction = ImeAction.Next,
-                ),
+                unit = unit,
+                onValueChange = { value = it },
+                label = stringResource(R.string.measurement_value_label),
+                placeholder = stringResource(R.string.measurement_value_hint),
+                modifier = Modifier.focusRequester(valueFocusRequester),
             )
 
             OutlinedTextField(
@@ -144,15 +123,12 @@ fun MeasurementEditorSheet(
             ) {
                 if (editing == null) {
                     TextButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.action_close))
+                        Text(stringResource(R.string.action_cancel))
                     }
                     Button(
                         onClick = {
-                            val text = normalized ?: return@Button
-                            onAdd(text, comment)
-                            value = ""
-                            comment = ""
-                            valueFocusRequester.requestFocus()
+                            if (normalized == null) return@Button
+                            onAdd(value, comment)
                         },
                         enabled = normalized != null,
                     ) {
@@ -164,8 +140,8 @@ fun MeasurementEditorSheet(
                     }
                     Button(
                         onClick = {
-                            val text = normalized ?: return@Button
-                            onUpdate(text, comment)
+                            if (normalized == null) return@Button
+                            onUpdate(value, comment)
                         },
                         enabled = normalized != null,
                     ) {

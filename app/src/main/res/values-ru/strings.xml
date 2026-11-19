@@ -92,10 +92,6 @@
     <string name="measurement_edit">Изменить измерение</string>
     <string name="measurement_value_label">Значение</string>
     <string name="measurement_value_hint">Например, 1.763</string>
-    <plurals name="measurement_value_error">
-        <item quantity="one">Введите положительное число, не более %1$d знака после запятой</item>
-        <item quantity="other">Введите положительное число, не более %1$d знаков после запятой</item>
-    </plurals>
     <string name="measurement_comment_label">Комментарий</string>
     <string name="measurement_comment_hint">Что это за размер?</string>
     <string name="measurement_comment_add">Добавить комментарий</string>

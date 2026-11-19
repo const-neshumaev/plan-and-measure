@@ -277,7 +277,10 @@ fun MeasurementListScreen(
             unit = list.unit,
             focusComment = focusComment,
             onDismiss = { sheetOpen = false },
-            onAdd = { value, comment -> viewModel.addMeasurement(value, comment) },
+            onAdd = { value, comment ->
+                viewModel.addMeasurement(value, comment)
+                sheetOpen = false
+            },
             onUpdate = { value, comment ->
                 editing?.let { viewModel.updateMeasurement(it.id, value, comment) }
                 sheetOpen = false

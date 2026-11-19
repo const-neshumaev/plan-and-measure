@@ -6,17 +6,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,19 +31,16 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.planmeasure.R
-import com.planmeasure.units.LengthInput
 import com.planmeasure.units.LengthUnit
 import com.planmeasure.plans.PlanDocument
 import com.planmeasure.plans.PlanPoint
-import com.planmeasure.ui.components.labelRes
+import com.planmeasure.ui.components.LengthInputField
 import kotlin.math.roundToInt
 
 private val CardWidth = 300.dp
@@ -55,8 +48,6 @@ private val CardMargin = 8.dp
 
 /** Distance from the wall to the card, so the card does not hide the line it belongs to. */
 private val CardGap = 18.dp
-
-private const val MAX_VALUE_LENGTH = 12
 
 /**
  * Screen position of the middle of [edgeId], used to place the dimension card next to its wall.
@@ -139,8 +130,6 @@ internal fun PlanDimensionCard(
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val normalized = LengthInput.normalize(value, unit)
-    val showError = value.isNotBlank() && normalized == null
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(edgeId) {
@@ -184,36 +173,17 @@ internal fun PlanDimensionCard(
                 }
             }
 
-            OutlinedTextField(
+            LengthInputField(
                 value = value,
-                onValueChange = { onValueChange(it.take(MAX_VALUE_LENGTH)) },
+                unit = unit,
+                onValueChange = onValueChange,
+                label = stringResource(R.string.plan_dimension_value),
+                placeholder = stringResource(R.string.measurement_value_hint),
                 modifier = Modifier
-                    .fillMaxWidth()
                     .padding(end = 4.dp)
                     .focusRequester(focusRequester),
-                label = { Text(stringResource(R.string.plan_dimension_value)) },
-                placeholder = { Text(stringResource(R.string.measurement_value_hint)) },
-                suffix = { Text(stringResource(unit.labelRes())) },
-                singleLine = true,
-                isError = showError,
-                supportingText = if (showError) {
-                    {
-                        Text(
-                            pluralStringResource(
-                                R.plurals.measurement_value_error,
-                                unit.displayDecimals,
-                                unit.displayDecimals,
-                            ),
-                        )
-                    }
-                } else {
-                    null
-                },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Decimal,
-                    imeAction = ImeAction.Done,
-                ),
-                keyboardActions = KeyboardActions(onDone = { onDone() }),
+                imeAction = ImeAction.Done,
+                onDone = onDone,
             )
 
             Text(
