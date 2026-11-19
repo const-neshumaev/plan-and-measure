@@ -51,6 +51,9 @@ data class SegmentSnap(val point: PlanPoint, val node: PlanNode?)
 /** New sheet size plus the shift of the drawing needed to fit it, see [PlanGeometry.growWorldToFit]. */
 data class WorldGrowth(val shift: PlanPoint, val size: PlanSize)
 
+/** New sheet size plus the shift that centres the drawing on it, see [PlanGeometry.trimWorldToDrawing]. */
+data class WorldTrim(val shift: PlanPoint, val size: PlanSize)
+
 /**
  * Snapping rules of the drawing.
  *
@@ -278,6 +281,34 @@ object PlanGeometry {
             return null
         }
         return WorldGrowth(shift = shift, size = PlanSize(width = width, height = height))
+    }
+
+    /**
+     * Sheet size and drawing shift that fit the sheet to [points], or `null` when the sheet already
+     * fits the drawing or cannot get smaller.
+     *
+     * A dimension can shrink the drawing to a fraction of the sheet it once grew into, and that
+     * sheet would leave the plan in a corner of empty grid. The sheet is cut back to the drawing
+     * rounded up to whole [PlanWorld.GROWTH_STEP] steps, and the drawing is centred on it, so the
+     * plan fills the page whatever corner it was drawn in. The trim never grows the sheet: growth
+     * belongs to [growWorldToFit] while drawing and editing.
+     */
+    fun trimWorldToDrawing(world: PlanSize, points: List<PlanPoint>): WorldTrim? {
+        if (points.isEmpty()) return null
+        val minX = points.minOf { it.x }
+        val minY = points.minOf { it.y }
+        val drawingWidth = points.maxOf { it.x } - minX
+        val drawingHeight = points.maxOf { it.y } - minY
+        val width = minOf(world.width, maxOf(PlanWorld.GROWTH_STEP, ceilToStep(drawingWidth)))
+        val height = minOf(world.height, maxOf(PlanWorld.GROWTH_STEP, ceilToStep(drawingHeight)))
+        if (width == world.width && height == world.height) return null
+        return WorldTrim(
+            shift = PlanPoint(
+                x = (width - drawingWidth) / 2 - minX,
+                y = (height - drawingHeight) / 2 - minY,
+            ),
+            size = PlanSize(width = width, height = height),
+        )
     }
 
     private fun shiftFor(minimum: Double): Double =

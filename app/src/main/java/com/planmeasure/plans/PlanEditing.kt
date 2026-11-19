@@ -307,14 +307,19 @@ object PlanEditing {
         )
 
     /**
-     * Grows the sheet so that every node stays inside it; see [PlanGeometry.growWorldToFit].
+     * Fits the sheet to the drawing: grows it when a node is outside it, and trims it back when the
+     * plan is already scaled and the sheet is larger than the drawing.
      *
-     * Edits keep the invariant themselves. This is the repair path for a document written while
-     * the sheet size was still capped, which left nodes outside the sheet. Returns the same
-     * instance when the drawing already fits.
+     * Edits keep the invariant themselves. This is the repair path for a document written by an
+     * older version: the sheet could be capped below the drawing, or left oversized after a
+     * dimension reshaped the plan. A sketch without dimensions is never trimmed, so opening it does
+     * not change the resolution it was drawn for. Returns the same instance when the sheet already
+     * matches the drawing.
      */
-    fun fitWorldToDrawing(document: PlanDocument): PlanDocument =
-        document.withWorldFittingDrawing()
+    fun fitWorldToDrawing(document: PlanDocument): PlanDocument {
+        val fitted = document.withWorldFittingDrawing()
+        return if (fitted.mmPerUnit == null) fitted else fitted.withWorldTrimmedToDrawing()
+    }
 
     private fun List<PlanNode>.plusIfAbsent(node: PlanNode): List<PlanNode> =
         if (any { it.id == node.id }) this else this + node
@@ -388,4 +393,18 @@ internal fun PlanDocument.withWorldFittingDrawing(): PlanDocument {
         nodes.map { it.copy(x = it.x + growth.shift.x, y = it.y + growth.shift.y) }
     }
     return copy(world = growth.size, nodes = moved)
+}
+
+/**
+ * Fits the sheet to the drawing and centres the drawing on it; see
+ * [PlanGeometry.trimWorldToDrawing].
+ *
+ * Called after a dimension reshapes the plan: the fitted drawing can become much smaller than the
+ * sheet it once grew into, and that sheet would leave the plan in a corner of empty grid.
+ */
+internal fun PlanDocument.withWorldTrimmedToDrawing(): PlanDocument {
+    val trim = PlanGeometry.trimWorldToDrawing(world, nodes.map { PlanPoint(it.x, it.y) })
+        ?: return this
+    val moved = nodes.map { it.copy(x = it.x + trim.shift.x, y = it.y + trim.shift.y) }
+    return copy(world = trim.size, nodes = moved)
 }

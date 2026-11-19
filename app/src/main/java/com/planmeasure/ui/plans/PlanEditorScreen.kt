@@ -182,20 +182,17 @@ fun PlanEditorScreen(
         }
     }
 
-    // The scale of the plan and the wall as drawn, shown only when the drawing disagrees with the
-    // saved dimension. Both are derived from the document, never stored (ADR 0012).
+    // How far the drawing is from the saved dimension, shown only when the two disagree. It is
+    // derived from the document, never stored (ADR 0012).
     val unitLabel = stringResource(plan.unit.labelRes())
     fun formatLength(millimeters: Double): String {
         val text = Length.format(Length.canonical(BigDecimal.valueOf(millimeters)), plan.unit)
         return "$text $unitLabel"
     }
 
-    val scaleText = plan.mmPerUnit?.let { scale -> formatLength(scale) }
-    val drawnValue = selectedEdge
+    val deviation = selectedEdge
         ?.takeIf { PlanScale.isMismatched(plan, it.id) }
-        ?.let { edge ->
-            PlanScale.drawnMillimeters(plan, edge.id)?.let { formatLength(it) }
-        }
+        ?.let { edge -> PlanScale.deviationMillimeters(plan, edge.id)?.let { formatLength(it) } }
 
     BackHandler {
         commitDimension()
@@ -389,8 +386,7 @@ fun PlanEditorScreen(
                         unit = plan.unit,
                         hasSavedDimension = selectedEdge.dimension != null,
                         connected = gattState.connected,
-                        scaleText = scaleText,
-                        drawnValue = drawnValue,
+                        deviation = deviation,
                         onValueChange = { draftValue = it },
                         onDone = {
                             commitDimension()

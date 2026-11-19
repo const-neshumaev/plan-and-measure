@@ -115,11 +115,11 @@ internal fun dimensionCardOffset(
  *
  * There is no Save button: the editor commits the value when the card closes, when the keyboard's
  * Done is pressed or when a rangefinder reading arrives. [hasSavedDimension] only decides whether
- * the field takes focus and shows the delete action.
+ * the delete action is shown and whether a disconnected card opens the keyboard at once.
  *
- * [scaleText] is the scale of the plan, shown while one exists, and [drawnValue] is the wall as it
- * is drawn: it is set only when the drawing disagrees with the saved dimension, because the fixed
- * angles of a closed contour cannot hold every measurement (ADR 0012).
+ * [deviation] is how far the drawing is from the saved dimension, already formatted: it is set only
+ * when the two disagree, because the fixed angles of a closed contour cannot hold every measurement
+ * (ADR 0012, 0013).
  */
 @Composable
 internal fun PlanDimensionCard(
@@ -128,8 +128,7 @@ internal fun PlanDimensionCard(
     unit: LengthUnit,
     hasSavedDimension: Boolean,
     connected: Boolean,
-    scaleText: String?,
-    drawnValue: String?,
+    deviation: String?,
     onValueChange: (String) -> Unit,
     onDone: () -> Unit,
     onDelete: () -> Unit,
@@ -139,10 +138,11 @@ internal fun PlanDimensionCard(
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(edgeId) {
-        // A wall without a dimension is usually measured right now, so the keyboard opens at once.
-        // An existing value is more often looked at or corrected, and the card should not cover
-        // half of the sheet before the user asks for the keyboard.
-        if (!hasSavedDimension) focusRequester.requestFocus()
+        // With the rangefinder connected the value is expected from the device, and the keyboard
+        // would cover half of the sheet on every open, so the field takes focus only on a tap.
+        // Without the device manual input is the only way, and a wall without a dimension is
+        // usually measured right now. An existing value is more often looked at or corrected.
+        if (!connected && !hasSavedDimension) focusRequester.requestFocus()
     }
 
     Surface(
@@ -192,18 +192,9 @@ internal fun PlanDimensionCard(
                 onDone = onDone,
             )
 
-            if (!scaleText.isNullOrEmpty()) {
+            if (!deviation.isNullOrEmpty()) {
                 Text(
-                    text = stringResource(R.string.plan_dimension_scale, scaleText),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(end = 4.dp),
-                )
-            }
-
-            if (!drawnValue.isNullOrEmpty()) {
-                Text(
-                    text = stringResource(R.string.plan_dimension_mismatch, drawnValue),
+                    text = stringResource(R.string.plan_dimension_deviation, deviation),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.padding(end = 4.dp),
@@ -242,8 +233,7 @@ internal fun PlanDimensionCardOverlay(
     unit: LengthUnit,
     hasSavedDimension: Boolean,
     connected: Boolean,
-    scaleText: String?,
-    drawnValue: String?,
+    deviation: String?,
     onValueChange: (String) -> Unit,
     onDone: () -> Unit,
     onDelete: () -> Unit,
@@ -271,8 +261,7 @@ internal fun PlanDimensionCardOverlay(
         unit = unit,
         hasSavedDimension = hasSavedDimension,
         connected = connected,
-        scaleText = scaleText,
-        drawnValue = drawnValue,
+        deviation = deviation,
         onValueChange = onValueChange,
         onDone = onDone,
         onDelete = onDelete,

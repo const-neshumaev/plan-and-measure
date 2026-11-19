@@ -355,6 +355,40 @@ class PlanGeometryTest {
     }
 
     @Test
+    fun trimsSheetToTheDrawingAndCentresIt() {
+        val trim = PlanGeometry.trimWorldToDrawing(
+            world = PlanSize(width = 400.0, height = 300.0),
+            points = listOf(PlanPoint(2.0, 2.0), PlanPoint(88.0, 123.0)),
+        )
+
+        // 86 x 121 units rounded up to the 20-step sheet, the drawing centred on it.
+        assertEquals(PlanSize(width = 100.0, height = 140.0), trim?.size)
+        assertEquals(PlanPoint(5.0, 7.5), trim?.shift)
+    }
+
+    @Test
+    fun doesNotTrimSheetItCannotShrink() {
+        // An old sheet smaller than the step cannot be cut further, and a drawing that already fills
+        // the sheet does not move it either.
+        assertNull(
+            PlanGeometry.trimWorldToDrawing(
+                world = PlanSize(width = 20.0, height = 28.0),
+                points = listOf(PlanPoint(1.0, 1.0), PlanPoint(19.0, 27.0)),
+            ),
+        )
+        assertNull(
+            PlanGeometry.trimWorldToDrawing(
+                world = PlanSize(),
+                points = listOf(
+                    PlanPoint(0.0, 0.0),
+                    PlanPoint(PlanWorld.DEFAULT_WIDTH, PlanWorld.DEFAULT_HEIGHT),
+                ),
+            ),
+        )
+        assertNull(PlanGeometry.trimWorldToDrawing(PlanSize(), emptyList()))
+    }
+
+    @Test
     fun startSnapsToNodeUnderFinger() {
         val node = PlanNode("n", 3.0, 4.0)
         assertEquals(
