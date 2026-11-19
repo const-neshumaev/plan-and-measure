@@ -5,7 +5,7 @@ import com.planmeasure.units.LengthUnit
 import kotlinx.serialization.Serializable
 
 /** Current version of the on-disk plan document. Bump when the shape changes. */
-const val PLAN_SCHEMA_VERSION = 4
+const val PLAN_SCHEMA_VERSION = 5
 
 /**
  * Size of the drawing sheet in grid units; the sheet is a rectangle starting at the origin.
@@ -45,11 +45,13 @@ data class PlanEdge(
 )
 
 /**
- * A distance the user attached to one edge, see ADR 0007 and 0009.
+ * A distance the user attached to one edge, see ADR 0007, 0009 and 0012.
  *
- * The value is canonical millimeters (see `com.planmeasure.units.Length`): the plan has no real-world
- * scale, so a dimension annotates the drawing instead of changing its geometry. The unit of the
- * plan decides how the same value is shown, so changing it never rewrites the dimension.
+ * The value is canonical millimeters (see `com.planmeasure.units.Length`). The unit of the plan
+ * decides how the same value is shown, so changing it never rewrites the dimension.
+ *
+ * The dimension is what gives the plan its scale: once one exists, the drawing is reshaped to hold
+ * it, and a value the fixed angles cannot accommodate stays a label. See [PlanScale].
  */
 @Serializable
 data class PlanDimension(
@@ -84,6 +86,17 @@ data class PlanDocument(
     val createdAt: Long,
     val updatedAt: Long = createdAt,
     val world: PlanSize = PlanSize(),
+    /**
+     * Millimeters per grid unit, or `null` while the plan is an unscaled sketch.
+     *
+     * It is a ratio, not a length, and it belongs to the plan because the drawing itself is in
+     * abstract grid units: the first dimension sets the ratio, and every later dimension is
+     * converted with it (ADR 0012). The ratio is stored instead of being derived from the oldest
+     * dimension, otherwise deleting one wall would rescale the whole drawing.
+     */
+    val mmPerUnit: Double? = null,
+    /** Edge whose dimension set [mmPerUnit]; re-measuring it moves the scale too. */
+    val scaleEdgeId: String? = null,
     val nodes: List<PlanNode> = emptyList(),
     val contours: List<PlanContour> = emptyList(),
 ) {

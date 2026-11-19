@@ -11,8 +11,10 @@ import kotlin.math.hypot
  * removes one edge, or inserts a node on an edge and thus splits it into two independent edges.
  * Anything that leaves the sheet grows it, see [PlanGeometry.growWorldToFit].
  *
- * Dimensions are annotations of edges: attaching or removing one never changes coordinates
- * (ADR 0007).
+ * Dimensions are attached to edges and give the plan its scale: entering one reshapes the drawing
+ * so that the measured wall becomes as long as it is in reality, see [PlanScale] and ADR 0012.
+ * Editing the shape afterwards does not run that fit: a drag stays free, and a dimension it breaks
+ * is marked instead of pulling the finger back.
  */
 object PlanEditing {
 
@@ -161,7 +163,9 @@ object PlanEditing {
             }
         }
 
-        return document.copy(contours = contours).withoutUnusedNodes()
+        return document.copy(contours = contours)
+            .withoutUnusedNodes()
+            .let(PlanScale::normalize)
     }
 
     /**
@@ -219,7 +223,7 @@ object PlanEditing {
         }
         if (!replaced) return document
 
-        return document.copy(nodes = document.nodes + node, contours = contours)
+        return PlanScale.normalize(document.copy(nodes = document.nodes + node, contours = contours))
     }
 
     /**
@@ -280,10 +284,10 @@ object PlanEditing {
     }
 
     fun clearDrawing(document: PlanDocument): PlanDocument =
-        document.copy(nodes = emptyList(), contours = emptyList())
+        PlanScale.normalize(document.copy(nodes = emptyList(), contours = emptyList()))
 
     /**
-     * Attaches [dimension] to the edge [edgeId]; the geometry is left untouched.
+     * Attaches [dimension] to the edge [edgeId] and refits the drawing, see [PlanScale].
      *
      * Returns the same instance when the edge is unknown or already carries this dimension, which
      * keeps a repeated rangefinder reading out of the undo history.
@@ -292,15 +296,15 @@ object PlanEditing {
         document: PlanDocument,
         edgeId: String,
         dimension: PlanDimension,
-    ): PlanDocument = document.updateEdge(edgeId) { edge ->
-        if (edge.dimension == dimension) edge else edge.copy(dimension = dimension)
-    }
+    ): PlanDocument = PlanScale.applyDimension(document, edgeId, dimension)
 
-    /** Removes the dimension of [edgeId], or returns the same instance when there is none. */
+    /** Removes the dimension of [edgeId]; the drawing keeps the shape it has. */
     fun removeDimension(document: PlanDocument, edgeId: String): PlanDocument =
-        document.updateEdge(edgeId) { edge ->
-            if (edge.dimension == null) edge else edge.copy(dimension = null)
-        }
+        PlanScale.normalize(
+            document.replaceEdge(edgeId) { edge ->
+                if (edge.dimension == null) edge else edge.copy(dimension = null)
+            },
+        )
 
     /**
      * Grows the sheet so that every node stays inside it; see [PlanGeometry.growWorldToFit].
@@ -312,48 +316,8 @@ object PlanEditing {
     fun fitWorldToDrawing(document: PlanDocument): PlanDocument =
         document.withWorldFittingDrawing()
 
-    /**
-     * Grows the sheet so that every node stays inside it, shifting the drawing when a node went
-     * left of or above the origin. Returns the same instance when the drawing already fits.
-     */
-    private fun PlanDocument.withWorldFittingDrawing(): PlanDocument {
-        val points = nodes.map { PlanPoint(it.x, it.y) }
-        val growth = PlanGeometry.growWorldToFit(world, points) ?: return this
-        val moved = if (growth.shift.x == 0.0 && growth.shift.y == 0.0) {
-            nodes
-        } else {
-            nodes.map { it.copy(x = it.x + growth.shift.x, y = it.y + growth.shift.y) }
-        }
-        return copy(world = growth.size, nodes = moved)
-    }
-
     private fun List<PlanNode>.plusIfAbsent(node: PlanNode): List<PlanNode> =
         if (any { it.id == node.id }) this else this + node
-
-    /**
-     * Rebuilds the document with [change] applied to one edge; unchanged instances are preserved so
-     * that callers can detect a no-op by identity.
-     */
-    private fun PlanDocument.updateEdge(
-        edgeId: String,
-        change: (PlanEdge) -> PlanEdge,
-    ): PlanDocument {
-        var changed = false
-        val contours = contours.map { contour ->
-            if (contour.edges.none { it.id == edgeId }) return@map contour
-            contour.copy(
-                edges = contour.edges.map { edge ->
-                    if (edge.id != edgeId) {
-                        edge
-                    } else {
-                        change(edge).also { updated -> if (updated !== edge) changed = true }
-                    }
-                },
-            )
-        }
-        if (!changed) return this
-        return copy(contours = contours)
-    }
 
     private fun PlanDocument.withoutUnusedNodes(): PlanDocument {
         val used = contours
@@ -384,4 +348,44 @@ object PlanEditing {
         }
         return copy(contours = merged).withoutUnusedNodes()
     }
+}
+
+/**
+ * Rebuilds the document with [change] applied to one edge; unchanged instances are preserved so
+ * that callers can detect a no-op by identity.
+ */
+internal fun PlanDocument.replaceEdge(
+    edgeId: String,
+    change: (PlanEdge) -> PlanEdge,
+): PlanDocument {
+    var changed = false
+    val contours = contours.map { contour ->
+        if (contour.edges.none { it.id == edgeId }) return@map contour
+        contour.copy(
+            edges = contour.edges.map { edge ->
+                if (edge.id != edgeId) {
+                    edge
+                } else {
+                    change(edge).also { updated -> if (updated !== edge) changed = true }
+                }
+            },
+        )
+    }
+    if (!changed) return this
+    return copy(contours = contours)
+}
+
+/**
+ * Grows the sheet so that every node stays inside it, shifting the drawing when a node went left of
+ * or above the origin. Returns the same instance when the drawing already fits.
+ */
+internal fun PlanDocument.withWorldFittingDrawing(): PlanDocument {
+    val growth = PlanGeometry.growWorldToFit(world, nodes.map { PlanPoint(it.x, it.y) })
+        ?: return this
+    val moved = if (growth.shift.x == 0.0 && growth.shift.y == 0.0) {
+        nodes
+    } else {
+        nodes.map { it.copy(x = it.x + growth.shift.x, y = it.y + growth.shift.y) }
+    }
+    return copy(world = growth.size, nodes = moved)
 }

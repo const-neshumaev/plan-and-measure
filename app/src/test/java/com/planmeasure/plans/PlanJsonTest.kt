@@ -64,6 +64,8 @@ class PlanJsonTest {
             name = "Kitchen",
             unit = LengthUnit.CENTIMETERS,
             createdAt = 1_000L,
+            mmPerUnit = 500.0,
+            scaleEdgeId = "edge-1",
             nodes = listOf(
                 PlanNode("node-a", 2.0, 2.0),
                 PlanNode("node-b", 6.0, 2.0),
@@ -98,8 +100,10 @@ class PlanJsonTest {
         )
 
         assertEquals(plan, PlanJson.decode(PlanJson.encode(plan)))
-        assertEquals(4, plan.schemaVersion)
+        assertEquals(5, plan.schemaVersion)
         assertEquals(LengthUnit.CENTIMETERS, plan.unit)
+        assertEquals(500.0, plan.mmPerUnit ?: 0.0, 0.0)
+        assertEquals("edge-1", plan.scaleEdgeId)
     }
 
     @Test

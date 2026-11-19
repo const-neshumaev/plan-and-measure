@@ -116,6 +116,10 @@ internal fun dimensionCardOffset(
  * There is no Save button: the editor commits the value when the card closes, when the keyboard's
  * Done is pressed or when a rangefinder reading arrives. [hasSavedDimension] only decides whether
  * the field takes focus and shows the delete action.
+ *
+ * [scaleText] is the scale of the plan, shown while one exists, and [drawnValue] is the wall as it
+ * is drawn: it is set only when the drawing disagrees with the saved dimension, because the fixed
+ * angles of a closed contour cannot hold every measurement (ADR 0012).
  */
 @Composable
 internal fun PlanDimensionCard(
@@ -124,6 +128,8 @@ internal fun PlanDimensionCard(
     unit: LengthUnit,
     hasSavedDimension: Boolean,
     connected: Boolean,
+    scaleText: String?,
+    drawnValue: String?,
     onValueChange: (String) -> Unit,
     onDone: () -> Unit,
     onDelete: () -> Unit,
@@ -186,6 +192,24 @@ internal fun PlanDimensionCard(
                 onDone = onDone,
             )
 
+            if (!scaleText.isNullOrEmpty()) {
+                Text(
+                    text = stringResource(R.string.plan_dimension_scale, scaleText),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(end = 4.dp),
+                )
+            }
+
+            if (!drawnValue.isNullOrEmpty()) {
+                Text(
+                    text = stringResource(R.string.plan_dimension_mismatch, drawnValue),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(end = 4.dp),
+                )
+            }
+
             Text(
                 text = stringResource(
                     if (connected) {
@@ -218,6 +242,8 @@ internal fun PlanDimensionCardOverlay(
     unit: LengthUnit,
     hasSavedDimension: Boolean,
     connected: Boolean,
+    scaleText: String?,
+    drawnValue: String?,
     onValueChange: (String) -> Unit,
     onDone: () -> Unit,
     onDelete: () -> Unit,
@@ -245,6 +271,8 @@ internal fun PlanDimensionCardOverlay(
         unit = unit,
         hasSavedDimension = hasSavedDimension,
         connected = connected,
+        scaleText = scaleText,
+        drawnValue = drawnValue,
         onValueChange = onValueChange,
         onDone = onDone,
         onDelete = onDelete,

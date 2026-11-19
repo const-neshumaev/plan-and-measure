@@ -52,6 +52,7 @@ import com.planmeasure.plans.PlanDimension
 import com.planmeasure.plans.PlanDocument
 import com.planmeasure.plans.PlanEditing
 import com.planmeasure.plans.PlanPoint
+import com.planmeasure.plans.PlanScale
 import com.planmeasure.plans.PlansViewModel
 import com.planmeasure.ui.components.ConnectBanner
 import com.planmeasure.ui.components.ListNameDialog
@@ -59,6 +60,7 @@ import com.planmeasure.ui.components.UnitBar
 import com.planmeasure.ui.components.labelRes
 import com.planmeasure.units.Length
 import com.planmeasure.units.LengthUnit
+import java.math.BigDecimal
 
 /** Editor of one plan: the drawing surface, tool switch, undo, grid toggle and document actions. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,6 +80,9 @@ fun PlanEditorScreen(
     var showGrid by rememberSaveable { mutableStateOf(true) }
     var tool by rememberSaveable { mutableStateOf(PlanTool.Draw) }
     var selectedEdgeId by rememberSaveable { mutableStateOf<String?>(null) }
+    // A selected wall can outlive its card: a rangefinder reading fills the value and closes the
+    // card, while the wall stays selected until the user taps elsewhere.
+    var cardOpen by rememberSaveable { mutableStateOf(false) }
     var draftValue by rememberSaveable { mutableStateOf("") }
     // The view starts fitted for every plan and is not part of the document, see ADR 0006.
     var viewport by rememberSaveable(plan.id, stateSaver = PlanViewportSaver) {
@@ -103,7 +108,7 @@ fun PlanEditorScreen(
     }
 
     fun commitDimension() {
-        if (tool != PlanTool.Dimensions) return
+        if (tool != PlanTool.Dimensions || !cardOpen) return
         val edgeId = selectedEdgeId ?: return
         viewModel.setEdgeDimension(edgeId, draftValue)
     }
@@ -118,14 +123,24 @@ fun PlanEditorScreen(
 
     fun closeCard() {
         commitDimension()
-        selectedEdgeId = null
+        cardOpen = false
     }
 
-    // Selecting another wall or empty space closes the card and keeps what was typed.
+    // Selecting another wall closes the card and keeps what was typed. Tapping the selected wall
+    // again opens the card a reading closed; tapping empty space drops the selection as well.
     val selectEdge: (String?) -> Unit = { id ->
-        if (id != selectedEdgeId) {
-            commitDimension()
-            selectedEdgeId = id
+        when {
+            id == null -> {
+                commitDimension()
+                cardOpen = false
+                selectedEdgeId = null
+            }
+            id == selectedEdgeId -> cardOpen = true
+            else -> {
+                commitDimension()
+                selectedEdgeId = id
+                cardOpen = true
+            }
         }
     }
 
@@ -143,12 +158,18 @@ fun PlanEditorScreen(
     // A reading goes only to the wall whose card is open: pointing the device at another wall
     // while the card is closed must not silently rewrite a dimension (ADR 0008).
     val lifecycleOwner = LocalLifecycleOwner.current
-    val dimensionEdgeId = selectedEdge?.id?.takeIf { tool == PlanTool.Dimensions }
+    val dimensionEdgeId = selectedEdge?.id?.takeIf { tool == PlanTool.Dimensions && cardOpen }
     LaunchedEffect(dimensionEdgeId, lifecycleOwner) {
         val edgeId = dimensionEdgeId ?: return@LaunchedEffect
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             labViewModel.deviceFrames.collect { frame ->
-                viewModel.onRangefinderFrame(edgeId, frame)
+                if (viewModel.onRangefinderFrame(edgeId, frame)) {
+                    // The reading is the value now, so there is nothing left to type. Hiding the
+                    // keyboard and the card leaves the wall free for the next measurement, which
+                    // is the common case: the user walks along the walls with the device.
+                    focusManager.clearFocus()
+                    cardOpen = false
+                }
             }
         }
     }
@@ -161,13 +182,30 @@ fun PlanEditorScreen(
         }
     }
 
+    // The scale of the plan and the wall as drawn, shown only when the drawing disagrees with the
+    // saved dimension. Both are derived from the document, never stored (ADR 0012).
+    val unitLabel = stringResource(plan.unit.labelRes())
+    fun formatLength(millimeters: Double): String {
+        val text = Length.format(Length.canonical(BigDecimal.valueOf(millimeters)), plan.unit)
+        return "$text $unitLabel"
+    }
+
+    val scaleText = plan.mmPerUnit?.let { scale -> formatLength(scale) }
+    val drawnValue = selectedEdge
+        ?.takeIf { PlanScale.isMismatched(plan, it.id) }
+        ?.let { edge ->
+            PlanScale.drawnMillimeters(plan, edge.id)?.let { formatLength(it) }
+        }
+
     BackHandler {
         commitDimension()
         onBack()
     }
     // The card closes before the editor leaves: a back press while typing must not lose the plan
     // screen. Declared after the exit handler, which is the one that wins when enabled.
-    BackHandler(enabled = selectedEdge != null && tool == PlanTool.Dimensions) { closeCard() }
+    BackHandler(enabled = cardOpen && selectedEdge != null && tool == PlanTool.Dimensions) {
+        closeCard()
+    }
 
     LaunchedEffect(Unit) {
         viewModel.messages.collect { snackbarHostState.showSnackbar(it) }
@@ -212,6 +250,7 @@ fun PlanEditorScreen(
                         IconButton(
                             onClick = {
                                 selectedEdgeId = null
+                                cardOpen = false
                                 viewModel.removeEdge(selectedEdge.id)
                             },
                         ) {
@@ -341,7 +380,7 @@ fun PlanEditorScreen(
                     onViewportChange = { viewport = it },
                     modifier = Modifier.fillMaxSize(),
                 )
-                if (tool == PlanTool.Dimensions && selectedEdge != null && cardAnchor != null) {
+                if (tool == PlanTool.Dimensions && cardOpen && selectedEdge != null && cardAnchor != null) {
                     PlanDimensionCardOverlay(
                         anchor = cardAnchor,
                         canvasSize = canvasSize,
@@ -350,6 +389,8 @@ fun PlanEditorScreen(
                         unit = plan.unit,
                         hasSavedDimension = selectedEdge.dimension != null,
                         connected = gattState.connected,
+                        scaleText = scaleText,
+                        drawnValue = drawnValue,
                         onValueChange = { draftValue = it },
                         onDone = {
                             commitDimension()

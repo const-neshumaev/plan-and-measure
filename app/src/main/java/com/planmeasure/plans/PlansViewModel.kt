@@ -32,9 +32,10 @@ import kotlinx.coroutines.sync.withLock
  * Undo restores snapshots of the open document. The history is kept in memory only: it starts
  * empty when a plan is opened, so the undo button means "undo the last change of this session".
  *
- * Dimensions are stored on edges and never change coordinates: the sheet has no real-world scale,
- * so a dimension annotates a wall instead of resizing it (ADR 0007). Values are canonical
- * millimeters, and the plan's unit decides how they are shown (ADR 0009).
+ * Dimensions are stored on edges and give the plan its scale: the first one declares how many
+ * millimeters a grid unit stands for, and the later ones reshape the drawing, see [PlanScale] and
+ * ADR 0012. Values are canonical millimeters, and the plan's unit decides how they are shown
+ * (ADR 0009).
  */
 class PlansViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -231,10 +232,15 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
      *
      * The caller passes only the edge whose editor is open, so readings never land on a wall the
      * user is not looking at. Frames with an unknown unit are dropped, like in measurement lists.
+     *
+     * Returns `true` when the reading became the value of the wall, so the screen can close the
+     * card: a measurement is complete when the device sends it, and an unchanged value still counts
+     * because the wall already holds it.
      */
-    fun onRangefinderFrame(edgeId: String, frame: DistanceFrame) {
-        val valueMm = frame.toCanonicalMillimeters() ?: return
+    fun onRangefinderFrame(edgeId: String, frame: DistanceFrame): Boolean {
+        val valueMm = frame.toCanonicalMillimeters() ?: return false
         applyDimension(edgeId, valueMm, MeasurementSource.RANGFINDER)
+        return true
     }
 
     /** Changes the unit of the open plan; the stored millimeters are not touched. */
