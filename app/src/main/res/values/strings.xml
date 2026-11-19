@@ -88,10 +88,6 @@
     <string name="measurement_edit">Edit measurement</string>
     <string name="measurement_value_label">Value</string>
     <string name="measurement_value_hint">e.g. 1.763</string>
-    <plurals name="measurement_value_error">
-        <item quantity="one">Enter a positive number with up to %1$d decimal place</item>
-        <item quantity="other">Enter a positive number with up to %1$d decimal places</item>
-    </plurals>
     <string name="measurement_comment_label">Comment</string>
     <string name="measurement_comment_hint">What is this dimension?</string>
     <string name="measurement_comment_add">Add a comment</string>

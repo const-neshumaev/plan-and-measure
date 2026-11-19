@@ -13,6 +13,22 @@ class LengthInputTest {
     }
 
     @Test
+    fun treatsTrailingSeparatorAsWholeNumber() {
+        assertEquals("10000", LengthInput.normalize("10.", LengthUnit.METERS))
+        assertEquals("10000", LengthInput.normalize("10,", LengthUnit.METERS))
+        assertNull(LengthInput.normalize(".", LengthUnit.METERS))
+    }
+
+    @Test
+    fun filtersCharactersThatCannotBelongToAValue() {
+        assertEquals("10", LengthInput.filter("1a0", LengthUnit.METERS))
+        assertEquals("12.34", LengthInput.filter("12.3.4", LengthUnit.METERS))
+        assertEquals("1,2", LengthInput.filter("1,2345", LengthUnit.CENTIMETERS))
+        assertEquals("0.5", LengthInput.filter(".5", LengthUnit.METERS))
+        assertEquals("123456", LengthInput.filter("1234567", LengthUnit.METERS))
+    }
+
+    @Test
     fun normalizesLeadingZerosAndSpaces() {
         assertEquals("1500", LengthInput.normalize("  01.5 ", LengthUnit.METERS))
         assertEquals("1", LengthInput.normalize("00.001", LengthUnit.METERS))
@@ -55,7 +71,6 @@ class LengthInputTest {
         assertNull(LengthInput.normalize("", LengthUnit.METERS))
         assertNull(LengthInput.normalize(".", LengthUnit.METERS))
         assertNull(LengthInput.normalize(".5", LengthUnit.METERS))
-        assertNull(LengthInput.normalize("1.", LengthUnit.METERS))
         assertNull(LengthInput.normalize("1234567", LengthUnit.METERS))
         assertNull(LengthInput.normalize("1,234,5", LengthUnit.METERS))
         assertNull(LengthInput.normalize("width", LengthUnit.METERS))
