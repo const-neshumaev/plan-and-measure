@@ -67,6 +67,22 @@ object PlanScale {
     }
 
     /**
+     * How far the drawn wall is from its dimension, in millimeters, or `null` when the plan has no
+     * scale, the wall carries no readable dimension or the wall cannot be measured.
+     *
+     * The value is absolute: the card names the wall and the user sees the `≈` mark on it, so the
+     * side of the disagreement carries no information (ADR 0013).
+     */
+    fun deviationMillimeters(document: PlanDocument, edgeId: String): Double? {
+        val scale = document.mmPerUnit ?: return null
+        val edge = document.edges.firstOrNull { it.id == edgeId } ?: return null
+        val value = edge.dimension?.valueMm?.toDoubleOrNull() ?: return null
+        if (value <= 0.0) return null
+        val length = edgeLength(document, edge) ?: return null
+        return abs(length * scale - value)
+    }
+
+    /**
      * Every wall whose dimension does not match the drawing.
      *
      * Both cases end up here: a dimension the fixed angles could not accommodate when it was
@@ -90,8 +106,10 @@ object PlanScale {
      *
      * A plan without a scale gets one from this dimension and keeps its geometry; later dimensions
      * are converted with that scale. Re-measuring the wall that set the scale moves the scale
-     * itself, because the user corrected the very value everything else is derived from. Returns
-     * the same instance when the edge is unknown or already carries this dimension.
+     * itself, because the user corrected the very value everything else is derived from. The sheet
+     * follows the reshaped drawing: it grows when a wall leaves it and is trimmed back when the
+     * drawing becomes smaller than the sheet it once needed. Returns the same instance when the edge
+     * is unknown or already carries this dimension.
      */
     fun applyDimension(
         document: PlanDocument,
@@ -112,7 +130,7 @@ object PlanScale {
             mmPerUnit = scale,
             scaleEdgeId = if (setsScale && scale != null) edgeId else updated.scaleEdgeId,
         )
-        return refit(scaled)
+        return refit(scaled).withWorldTrimmedToDrawing()
     }
 
     /**

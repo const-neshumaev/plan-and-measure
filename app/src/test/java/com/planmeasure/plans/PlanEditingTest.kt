@@ -382,6 +382,26 @@ class PlanEditingTest {
     }
 
     @Test
+    fun trimsSheetOfScaledPlanWhenOpened() {
+        val plan = PlanDocument(
+            id = PLAN_ID,
+            name = "Room",
+            createdAt = 1_000L,
+            world = PlanSize(width = 400.0, height = 300.0),
+            mmPerUnit = 41.0,
+            nodes = listOf(PlanNode("a", 41.0, 52.0), PlanNode("b", 83.0, 52.0)),
+        )
+
+        val fitted = PlanEditing.fitWorldToDrawing(plan)
+
+        // 42 x 0 units rounded up to the 20-step sheet, the drawing centred on it.
+        assertEquals(PlanSize(width = 60.0, height = 20.0), fitted.world)
+        assertEquals(PlanPoint(9.0, 10.0), positionOf(fitted, "a"))
+        assertEquals(PlanPoint(51.0, 10.0), positionOf(fitted, "b"))
+        assertSame(fitted, PlanEditing.fitWorldToDrawing(fitted))
+    }
+
+    @Test
     fun clearRemovesDrawing() {
         val plan = segment(emptyPlan(), 2.0, 2.0, 8.0, 2.0)
         val cleared = PlanEditing.clearDrawing(plan)
@@ -404,7 +424,9 @@ class PlanEditingTest {
 
         assertEquals(dimension, updated.edges.first { it.id == bottom.id }.dimension)
         assertTrue(updated.edges.filterNot { it.id == bottom.id }.all { it.dimension == null })
-        assertEquals(plan.nodes, updated.nodes)
+        // The sheet is trimmed to the drawing, so only the position on the sheet may change.
+        assertEquals(6.0, updated.nodes.maxOf { it.x } - updated.nodes.minOf { it.x }, 1e-9)
+        assertEquals(6.0, updated.nodes.maxOf { it.y } - updated.nodes.minOf { it.y }, 1e-9)
         assertEquals(plan.contours.single().edges.map { it.id }, updated.edges.map { it.id })
     }
 
@@ -552,7 +574,11 @@ class PlanEditingTest {
             ),
         )
 
-        val split = PlanEditing.splitEdge(annotated, edge.id, PlanPoint(5.0, 2.0), ids)
+        val start = requireNotNull(positionOf(annotated, edge.startNodeId))
+        val end = requireNotNull(positionOf(annotated, edge.endNodeId))
+        val middle = PlanPoint((start.x + end.x) / 2, (start.y + end.y) / 2)
+
+        val split = PlanEditing.splitEdge(annotated, edge.id, middle, ids)
 
         assertEquals(2, split.edgeCount)
         assertTrue(split.edges.all { it.dimension == null })

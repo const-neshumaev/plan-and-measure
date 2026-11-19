@@ -144,6 +144,7 @@ fun PlanCanvas(
     val nodeFill = MaterialTheme.colorScheme.surface
     val gridColor = MaterialTheme.colorScheme.outlineVariant
     val accentColor = MaterialTheme.colorScheme.primary
+    val errorColor = MaterialTheme.colorScheme.error
     val labelFill = MaterialTheme.colorScheme.primaryContainer
     val labelContent = MaterialTheme.colorScheme.onPrimaryContainer
     val mismatchFill = MaterialTheme.colorScheme.errorContainer
@@ -554,8 +555,11 @@ fun PlanCanvas(
                 val to = pointOf(edge.endNodeId) ?: return@forEach
                 val selected = edge.id == selectedEdgeId
                 val measured = edge.dimension != null
+                val differs = edge.id in mismatched
                 // A measured wall is thicker and takes the accent colour, so it separates from a
-                // plain wall at a glance; the selection is a glow on top of the same colour.
+                // plain wall at a glance; the selection is a glow on top of the same colour. A wall
+                // whose dimension the drawing cannot hold takes the error colour instead: the label
+                // of a short wall may be hidden, and the disagreement has to stay visible anyway.
                 val width = when {
                     selected -> LineWidth.toPx() * 2.4f
                     measured -> LineWidth.toPx() * 1.8f
@@ -563,9 +567,10 @@ fun PlanCanvas(
                 }
                 val startPx = transform.toPx(from)
                 val endPx = transform.toPx(to)
+                val highlighted = if (differs) errorColor else accentColor
                 if (selected) {
                     drawLine(
-                        color = accentColor.copy(alpha = 0.20f),
+                        color = highlighted.copy(alpha = 0.20f),
                         start = startPx,
                         end = endPx,
                         strokeWidth = LineWidth.toPx() * 5.5f,
@@ -573,7 +578,11 @@ fun PlanCanvas(
                     )
                 }
                 drawLine(
-                    color = if (selected || measured) accentColor else edgeColor,
+                    color = when {
+                        differs -> errorColor
+                        selected || measured -> accentColor
+                        else -> edgeColor
+                    },
                     start = startPx,
                     end = endPx,
                     strokeWidth = width,

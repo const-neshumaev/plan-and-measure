@@ -11,7 +11,7 @@ import org.junit.Test
 class PlanScaleTest {
 
     @Test
-    fun firstDimensionSetsTheScaleAndMovesNothing() {
+    fun firstDimensionSetsTheScaleWithoutChangingTheShape() {
         val plan = rectangle()
         val bottom = plan.edges.first()
 
@@ -19,7 +19,10 @@ class PlanScaleTest {
 
         assertEquals(1000.0, scaled.mmPerUnit ?: 0.0, 1e-9)
         assertEquals(bottom.id, scaled.scaleEdgeId)
-        assertEquals(plan.nodes, scaled.nodes)
+        // The sheet hugs the drawing, so the shape is kept and only its position on the sheet changes.
+        assertEquals(PlanSize(width = 20.0, height = 20.0), scaled.world)
+        assertPoint(PlanPoint(7.0, 7.0), positionOf(scaled, "a"))
+        assertDirectionsKept(plan, scaled)
         assertFalse(PlanScale.isMismatched(scaled, bottom.id))
     }
 
@@ -37,10 +40,10 @@ class PlanScaleTest {
         assertEquals(9000.0, drawn(fitted, "right") ?: 0.0, MM_TOLERANCE)
         assertEquals(6000.0, drawn(fitted, "top") ?: 0.0, MM_TOLERANCE)
         assertEquals(9000.0, drawn(fitted, "left") ?: 0.0, MM_TOLERANCE)
-        assertPoint(PlanPoint(2.0, 2.0), positionOf(fitted, "a"))
-        assertPoint(PlanPoint(8.0, 2.0), positionOf(fitted, "b"))
-        assertPoint(PlanPoint(8.0, 11.0), positionOf(fitted, "c"))
-        assertPoint(PlanPoint(2.0, 11.0), positionOf(fitted, "d"))
+        assertPoint(PlanPoint(7.0, 7.0), positionOf(fitted, "a"))
+        assertPoint(PlanPoint(13.0, 7.0), positionOf(fitted, "b"))
+        assertPoint(PlanPoint(13.0, 16.0), positionOf(fitted, "c"))
+        assertPoint(PlanPoint(7.0, 16.0), positionOf(fitted, "d"))
         assertDirectionsKept(plan, fitted)
         assertTrue(PlanScale.mismatchedEdgeIds(fitted).isEmpty())
     }
@@ -55,9 +58,9 @@ class PlanScaleTest {
 
         assertEquals(6000.0, drawn(fitted, "first") ?: 0.0, MM_TOLERANCE)
         assertEquals(3000.0, drawn(fitted, "second") ?: 0.0, MM_TOLERANCE)
-        assertPoint(PlanPoint(2.0, 2.0), positionOf(fitted, "a"))
-        assertPoint(PlanPoint(8.0, 2.0), positionOf(fitted, "b"))
-        assertPoint(PlanPoint(8.0, 5.0), positionOf(fitted, "c"))
+        assertPoint(PlanPoint(7.0, 8.0), positionOf(fitted, "a"))
+        assertPoint(PlanPoint(13.0, 8.0), positionOf(fitted, "b"))
+        assertPoint(PlanPoint(13.0, 11.0), positionOf(fitted, "c"))
         assertDirectionsKept(plan, fitted)
     }
 
@@ -143,7 +146,7 @@ class PlanScaleTest {
         val scaled = PlanEditing.setDimension(plan, first.id, dimension("6000", 2_000L))
         val measured = PlanEditing.setDimension(scaled, second.id, dimension("3000", 3_000L))
 
-        val split = PlanEditing.splitEdge(measured, first.id, PlanPoint(5.0, 2.0), idFactory())
+        val split = PlanEditing.splitEdge(measured, first.id, middleOf(measured, first.id), idFactory())
 
         assertEquals(1000.0, split.mmPerUnit ?: 0.0, 1e-9)
         assertNull(split.scaleEdgeId)
@@ -194,6 +197,41 @@ class PlanScaleTest {
     }
 
     @Test
+    fun dimensionTrimsTheSheetLeftBehindByTheDrawing() {
+        val plan = rectangle(world = PlanSize(width = 400.0, height = 300.0))
+        val bottom = plan.edges.first()
+
+        val scaled = PlanEditing.setDimension(plan, bottom.id, dimension("6000", 2_000L))
+
+        // The drawing occupies the corner of a sheet it once grew for; the dimension brings the sheet
+        // back to the drawing and centres it, so the plan fills the page.
+        assertEquals(PlanSize(width = 20.0, height = 20.0), scaled.world)
+        assertPoint(PlanPoint(7.0, 7.0), positionOf(scaled, "a"))
+    }
+
+    @Test
+    fun deviationIsTheDistanceBetweenTheDrawingAndTheDimension() {
+        val plan = triangle()
+        val (base, side) = plan.edges
+        val scaled = PlanEditing.setDimension(plan, base.id, dimension("6000", 2_000L))
+        val attempted = PlanEditing.setDimension(scaled, side.id, dimension("5000", 3_000L))
+
+        // The scale is 1000 mm per unit and the side stays drawn at 4 units, so it is 1000 mm short.
+        assertEquals(1000.0, PlanScale.deviationMillimeters(attempted, side.id) ?: 0.0, MM_TOLERANCE)
+        assertEquals(0.0, PlanScale.deviationMillimeters(attempted, base.id) ?: -1.0, MM_TOLERANCE)
+    }
+
+    @Test
+    fun deviationNeedsAScaleAndADimension() {
+        val plan = chain()
+        val (first, second) = plan.edges
+        val scaled = PlanEditing.setDimension(plan, first.id, dimension("6000", 2_000L))
+
+        assertNull(PlanScale.deviationMillimeters(plan, first.id))
+        assertNull(PlanScale.deviationMillimeters(scaled, second.id))
+    }
+
+    @Test
     fun unscaledPlanHasNoMismatch() {
         val plan = chain()
 
@@ -218,7 +256,7 @@ class PlanScaleTest {
         assertEquals("9000", fitted.edges.first { it.id == "right" }.dimension?.valueMm)
     }
 
-    private fun rectangle(): PlanDocument = plan(
+    private fun rectangle(world: PlanSize = PlanSize()): PlanDocument = plan(
         nodes = listOf(
             node("a", 2.0, 2.0),
             node("b", 8.0, 2.0),
@@ -231,6 +269,7 @@ class PlanScaleTest {
             edge("top", "c", "d"),
             edge("left", "d", "a"),
         ),
+        world = world,
     )
 
     private fun chain(world: PlanSize = PlanSize()): PlanDocument = plan(
@@ -285,6 +324,13 @@ class PlanScaleTest {
 
     private fun drawn(document: PlanDocument, edgeId: String): Double? =
         PlanScale.drawnMillimeters(document, edgeId)
+
+    private fun middleOf(document: PlanDocument, edgeId: String): PlanPoint {
+        val edge = document.edges.first { it.id == edgeId }
+        val start = requireNotNull(positionOf(document, edge.startNodeId))
+        val end = requireNotNull(positionOf(document, edge.endNodeId))
+        return PlanPoint((start.x + end.x) / 2, (start.y + end.y) / 2)
+    }
 
     private fun positionOf(document: PlanDocument, nodeId: String): PlanPoint? = document.nodes
         .firstOrNull { it.id == nodeId }
