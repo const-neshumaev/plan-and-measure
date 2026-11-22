@@ -11,6 +11,7 @@
     <string name="action_delete">Delete</string>
     <string name="action_edit">Edit</string>
     <string name="action_more">More</string>
+    <string name="action_move">Move</string>
     <string name="action_rename">Rename</string>
     <string name="action_save">Save</string>
     <string name="action_undo">Undo</string>
@@ -151,12 +152,53 @@
     <string name="plan_error_delete">Could not delete the plan</string>
     <string name="plan_error_load">Could not open the plan</string>
 
-    <!-- Projects (placeholder) -->
-    <string name="projects_demo_apartment">Apartment · living room</string>
-    <string name="projects_demo_apartment_meta">14 measurements · 3 photos</string>
-    <string name="projects_demo_office">Office · meeting room</string>
-    <string name="projects_demo_office_meta">8 measurements · 1 photo</string>
-    <string name="projects_new">New project</string>
+    <!-- Projects -->
+    <string name="project_new">New project</string>
+    <string name="project_name">Project name</string>
+    <string name="project_name_hint">e.g. Apartment on Lenina</string>
+    <string name="project_default_name">Project %1$s</string>
+    <string name="project_rename_title">Rename project</string>
+    <string name="project_delete_title">Delete project?</string>
+    <string name="project_delete_text">The project “%1$s” will be deleted. Its measurement lists and plans stay and become independent.</string>
+    <string name="project_updated">Updated %1$s</string>
+    <string name="project_meta">%1$s · %2$s</string>
+    <plurals name="project_folders_count">
+        <item quantity="one">%1$d folder</item>
+        <item quantity="other">%1$d folders</item>
+    </plurals>
+    <plurals name="project_objects_count">
+        <item quantity="one">%1$d object</item>
+        <item quantity="other">%1$d objects</item>
+    </plurals>
+    <string name="project_lists_empty_title">No projects yet</string>
+    <string name="project_lists_empty_text">Create a project to group measurement lists and plans into folders.</string>
+    <string name="project_tree_empty_title">Project is empty</string>
+    <string name="project_tree_empty_text">Add a folder or attach an existing measurement list or plan.</string>
+    <string name="project_folder_new">New folder</string>
+    <string name="project_folder_name">Folder name</string>
+    <string name="project_folder_name_hint">e.g. Living room</string>
+    <string name="project_folder_default_name">Folder %1$s</string>
+    <string name="project_folder_rename_title">Rename folder</string>
+    <string name="project_folder_delete_title">Delete folder?</string>
+    <string name="project_folder_delete_text">The folder “%1$s” and its subfolders will be deleted. Its objects move one level up and stay in the project.</string>
+    <string name="project_add_folder_here">Add subfolder</string>
+    <string name="project_add_list_here">Add measurement list</string>
+    <string name="project_add_plan_here">Add plan</string>
+    <string name="project_add_list_title">Add measurement list</string>
+    <string name="project_add_plan_title">Add plan</string>
+    <string name="project_create_new_list">New measurement list</string>
+    <string name="project_create_new_plan">New plan</string>
+    <string name="project_no_lists">No measurement lists to add. Create a new one.</string>
+    <string name="project_no_plans">No plans to add. Create a new one.</string>
+    <string name="project_move_object_title">Move “%1$s”</string>
+    <string name="project_move_folder_title">Move “%1$s”</string>
+    <string name="project_root">Project root</string>
+    <string name="project_in_project">In project: %1$s</string>
+    <string name="project_remove_object">Remove from project</string>
+    <string name="project_error_save">Could not save the project</string>
+    <string name="project_error_create">Could not create the project</string>
+    <string name="project_error_delete">Could not delete the project</string>
+    <string name="project_error_load">Could not open the project</string>
 
     <!-- Capture (placeholder) -->
     <string name="capture_preview">Camera preview</string>

@@ -57,6 +57,7 @@ import java.util.Locale
 @Composable
 fun PlanListsScreen(
     viewModel: PlansViewModel,
+    projectNames: Map<String, String> = emptyMap(),
     onBack: () -> Unit,
 ) {
     val plans by viewModel.plans.collectAsState()
@@ -141,6 +142,7 @@ fun PlanListsScreen(
                 items(plans, key = { it.id }) { plan ->
                     PlanRow(
                         plan = plan,
+                        projectName = projectNames[plan.id],
                         locale = locale,
                         onOpen = { viewModel.open(plan.id) },
                         onRename = { renaming = plan },
@@ -208,6 +210,7 @@ fun PlanListsScreen(
 @Composable
 private fun PlanRow(
     plan: PlanDocument,
+    projectName: String?,
     locale: Locale,
     onOpen: () -> Unit,
     onRename: () -> Unit,
@@ -257,6 +260,13 @@ private fun PlanRow(
                     ),
                     style = MaterialTheme.typography.bodySmall,
                 )
+                if (projectName != null) {
+                    Text(
+                        text = stringResource(R.string.project_in_project, projectName),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
             Box {
                 IconButton(onClick = { menuOpen = true }) {

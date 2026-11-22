@@ -11,6 +11,7 @@
     <string name="action_delete">Удалить</string>
     <string name="action_edit">Изменить</string>
     <string name="action_more">Ещё</string>
+    <string name="action_move">Переместить</string>
     <string name="action_rename">Переименовать</string>
     <string name="action_save">Сохранить</string>
     <string name="action_undo">Отменить</string>
@@ -157,12 +158,57 @@
     <string name="plan_error_delete">Не удалось удалить план</string>
     <string name="plan_error_load">Не удалось открыть план</string>
 
-    <!-- Projects (placeholder) -->
-    <string name="projects_demo_apartment">Квартира · гостиная</string>
-    <string name="projects_demo_apartment_meta">14 замеров · 3 фото</string>
-    <string name="projects_demo_office">Офис · переговорная</string>
-    <string name="projects_demo_office_meta">8 замеров · 1 фото</string>
-    <string name="projects_new">Новый проект</string>
+    <!-- Projects -->
+    <string name="project_new">Новый проект</string>
+    <string name="project_name">Название проекта</string>
+    <string name="project_name_hint">например, Квартира на Ленина</string>
+    <string name="project_default_name">Проект %1$s</string>
+    <string name="project_rename_title">Переименовать проект</string>
+    <string name="project_delete_title">Удалить проект?</string>
+    <string name="project_delete_text">Проект «%1$s» будет удалён. Его списки измерений и планы останутся и станут независимыми.</string>
+    <string name="project_updated">Обновлён %1$s</string>
+    <string name="project_meta">%1$s · %2$s</string>
+    <plurals name="project_folders_count">
+        <item quantity="one">%1$d папка</item>
+        <item quantity="few">%1$d папки</item>
+        <item quantity="many">%1$d папок</item>
+        <item quantity="other">%1$d папки</item>
+    </plurals>
+    <plurals name="project_objects_count">
+        <item quantity="one">%1$d объект</item>
+        <item quantity="few">%1$d объекта</item>
+        <item quantity="many">%1$d объектов</item>
+        <item quantity="other">%1$d объекта</item>
+    </plurals>
+    <string name="project_lists_empty_title">Проектов пока нет</string>
+    <string name="project_lists_empty_text">Создайте проект, чтобы объединить списки измерений и планы в папки.</string>
+    <string name="project_tree_empty_title">Проект пуст</string>
+    <string name="project_tree_empty_text">Добавьте папку или привяжите существующий список измерений или план.</string>
+    <string name="project_folder_new">Новая папка</string>
+    <string name="project_folder_name">Название папки</string>
+    <string name="project_folder_name_hint">например, Гостиная</string>
+    <string name="project_folder_default_name">Папка %1$s</string>
+    <string name="project_folder_rename_title">Переименовать папку</string>
+    <string name="project_folder_delete_title">Удалить папку?</string>
+    <string name="project_folder_delete_text">Папка «%1$s» и её подпапки будут удалены. Объекты из неё поднимутся на уровень выше и останутся в проекте.</string>
+    <string name="project_add_folder_here">Добавить подпапку</string>
+    <string name="project_add_list_here">Добавить список измерений</string>
+    <string name="project_add_plan_here">Добавить план</string>
+    <string name="project_add_list_title">Добавить список измерений</string>
+    <string name="project_add_plan_title">Добавить план</string>
+    <string name="project_create_new_list">Новый список измерений</string>
+    <string name="project_create_new_plan">Новый план</string>
+    <string name="project_no_lists">Нет списков измерений для добавления. Создайте новый.</string>
+    <string name="project_no_plans">Нет планов для добавления. Создайте новый.</string>
+    <string name="project_move_object_title">Переместить «%1$s»</string>
+    <string name="project_move_folder_title">Переместить «%1$s»</string>
+    <string name="project_root">Корень проекта</string>
+    <string name="project_in_project">В проекте: %1$s</string>
+    <string name="project_remove_object">Исключить из проекта</string>
+    <string name="project_error_save">Не удалось сохранить проект</string>
+    <string name="project_error_create">Не удалось создать проект</string>
+    <string name="project_error_delete">Не удалось удалить проект</string>
+    <string name="project_error_load">Не удалось открыть проект</string>
 
     <!-- Capture (placeholder) -->
     <string name="capture_preview">Изображение с камеры</string>

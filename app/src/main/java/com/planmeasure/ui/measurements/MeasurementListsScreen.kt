@@ -57,6 +57,7 @@ import java.util.Locale
 @Composable
 fun MeasurementListsScreen(
     viewModel: MeasurementsViewModel,
+    projectNames: Map<String, String> = emptyMap(),
     onBack: () -> Unit,
 ) {
     val lists by viewModel.lists.collectAsState()
@@ -141,6 +142,7 @@ fun MeasurementListsScreen(
                 items(lists, key = { it.id }) { summary ->
                     MeasurementListRow(
                         summary = summary,
+                        projectName = projectNames[summary.id],
                         locale = locale,
                         onOpen = { viewModel.open(summary.id) },
                         onRename = { renaming = summary },
@@ -210,6 +212,7 @@ fun MeasurementListsScreen(
 @Composable
 private fun MeasurementListRow(
     summary: MeasurementListSummary,
+    projectName: String?,
     locale: Locale,
     onOpen: () -> Unit,
     onRename: () -> Unit,
@@ -254,6 +257,13 @@ private fun MeasurementListRow(
                     ),
                     style = MaterialTheme.typography.bodySmall,
                 )
+                if (projectName != null) {
+                    Text(
+                        text = stringResource(R.string.project_in_project, projectName),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
             Box {
                 IconButton(onClick = { menuOpen = true }) {
