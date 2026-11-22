@@ -24,4 +24,10 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         storage.saveLanguage(language)
         _settings.update { it.copy(language = language) }
     }
+
+    fun setProjectTreeStyle(style: ProjectTreeStyle) {
+        if (_settings.value.projectTreeStyle == style) return
+        storage.saveProjectTreeStyle(style)
+        _settings.update { it.copy(projectTreeStyle = style) }
+    }
 }

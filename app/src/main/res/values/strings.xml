@@ -63,7 +63,7 @@
     <string name="section_capture">Capture</string>
     <string name="section_capture_details">Photos linked to measurements</string>
     <string name="section_settings">Settings</string>
-    <string name="section_settings_details">Theme and language</string>
+    <string name="section_settings_details">Theme, language and project tree</string>
 
     <!-- Measurements -->
     <string name="measurement_lists_empty_title">No saved lists yet</string>
@@ -212,6 +212,9 @@
     <string name="settings_language">Language</string>
     <string name="settings_language_english">English</string>
     <string name="settings_language_russian">Русский</string>
+    <string name="settings_project_tree">Project tree</string>
+    <string name="settings_project_tree_headers">Group headers</string>
+    <string name="settings_project_tree_nested">Nested cards</string>
 
     <!-- BLE Lab: scan -->
     <string name="lab_title">BLE Lab</string>

@@ -2,6 +2,7 @@ package com.planmeasure.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -41,6 +42,7 @@ fun AppRoot(
     var section by rememberSaveable { mutableStateOf<HomeSection?>(null) }
     var labOpen by rememberSaveable { mutableStateOf(false) }
     var connectOpen by rememberSaveable { mutableStateOf(false) }
+    val settings by settingsViewModel.settings.collectAsState()
 
     BackHandler(
         enabled = section != null &&
@@ -83,6 +85,7 @@ fun AppRoot(
 
         HomeSection.Projects -> ProjectsFlow(
             labViewModel = viewModel,
+            treeStyle = settings.projectTreeStyle,
             onExit = { section = null },
             onOpenConnect = { connectOpen = true },
         )

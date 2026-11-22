@@ -65,7 +65,7 @@
     <string name="section_capture">Съёмка</string>
     <string name="section_capture_details">Фото, привязанные к замерам</string>
     <string name="section_settings">Настройки</string>
-    <string name="section_settings_details">Тема и язык</string>
+    <string name="section_settings_details">Тема, язык и вид дерева проектов</string>
 
     <!-- Measurements -->
     <string name="measurement_lists_empty_title">Сохранённых списков пока нет</string>
@@ -222,6 +222,9 @@
     <string name="settings_language">Язык</string>
     <string name="settings_language_english">English</string>
     <string name="settings_language_russian">Русский</string>
+    <string name="settings_project_tree">Дерево проектов</string>
+    <string name="settings_project_tree_headers">Заголовки групп</string>
+    <string name="settings_project_tree_nested">Вложенные карточки</string>
 
     <!-- BLE Lab: scan -->
     <string name="lab_title">BLE-лаборатория</string>
