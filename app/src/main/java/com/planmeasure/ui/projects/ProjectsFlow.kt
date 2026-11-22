@@ -14,6 +14,7 @@ import com.planmeasure.projects.ProjectObjectKind
 import com.planmeasure.projects.ProjectObjectRef
 import com.planmeasure.projects.ProjectsViewModel
 import com.planmeasure.projects.key
+import com.planmeasure.settings.ProjectTreeStyle
 import com.planmeasure.ui.measurements.MeasurementListScreen
 import com.planmeasure.ui.plans.PlanEditorScreen
 
@@ -28,6 +29,7 @@ import com.planmeasure.ui.plans.PlanEditorScreen
 @Composable
 fun ProjectsFlow(
     labViewModel: LabViewModel,
+    treeStyle: ProjectTreeStyle,
     onExit: () -> Unit,
     onOpenConnect: () -> Unit,
     viewModel: ProjectsViewModel = viewModel(),
@@ -114,6 +116,7 @@ fun ProjectsFlow(
                 projects = projects,
                 measurementLists = measurementLists,
                 plans = plans,
+                treeStyle = treeStyle,
                 viewModel = viewModel,
                 measurementsViewModel = measurementsViewModel,
                 plansViewModel = plansViewModel,

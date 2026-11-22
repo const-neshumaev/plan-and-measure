@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -23,6 +23,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -45,12 +46,17 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.planmeasure.R
 import com.planmeasure.measurements.MeasurementListSummary
@@ -65,6 +71,7 @@ import com.planmeasure.projects.ProjectObjectRef
 import com.planmeasure.projects.ProjectTree
 import com.planmeasure.projects.ProjectsViewModel
 import com.planmeasure.projects.key
+import com.planmeasure.settings.ProjectTreeStyle
 import com.planmeasure.ui.components.EmptyState
 import com.planmeasure.ui.components.ListNameDialog
 import com.planmeasure.ui.components.defaultNameTimestamp
@@ -77,6 +84,7 @@ fun ProjectTreeScreen(
     projects: List<ProjectDocument>,
     measurementLists: List<MeasurementListSummary>,
     plans: List<PlanDocument>,
+    treeStyle: ProjectTreeStyle,
     viewModel: ProjectsViewModel,
     measurementsViewModel: MeasurementsViewModel,
     plansViewModel: PlansViewModel,
@@ -319,22 +327,29 @@ fun ProjectTreeScreen(
                     end = 20.dp,
                     bottom = 96.dp,
                 ),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                items(
+                itemsIndexed(
                     items = entries,
-                    key = { entry ->
+                    key = { _, entry ->
                         when (entry) {
                             is ProjectTree.Entry.FolderEntry -> "folder:${entry.folder.id}"
                             is ProjectTree.Entry.ObjectEntry ->
                                 "object:${entry.ref.kind.name}:${entry.ref.refId}"
                         }
                     },
-                ) { entry ->
+                ) { index, entry ->
+                    val previous = entries.getOrNull(index - 1)
+                    val topGap = if (treeStyle == ProjectTreeStyle.Nested) {
+                        if (index == 0) 0.dp else 8.dp
+                    } else {
+                        gapBefore(previous, entry)
+                    }
                     when (entry) {
                         is ProjectTree.Entry.FolderEntry -> FolderRow(
                             folder = entry.folder,
                             depth = entry.depth,
+                            style = treeStyle,
+                            topGap = topGap,
                             expanded = entry.folder.id !in collapsed,
                             onToggle = { toggleFolder(entry.folder.id) },
                             onAddFolder = {
@@ -390,6 +405,11 @@ fun ProjectTreeScreen(
                                 name = name,
                                 meta = meta,
                                 depth = entry.depth,
+                                style = treeStyle,
+                                topGap = topGap,
+                                showDivider = treeStyle == ProjectTreeStyle.Headers &&
+                                    previous is ProjectTree.Entry.ObjectEntry &&
+                                    previous.ref.folderId == ref.folderId,
                                 onOpen = { onOpenObject(ref) },
                                 onMove = { movingObject = ref },
                                 onRemove = {
@@ -634,6 +654,8 @@ fun ProjectTreeScreen(
 private fun FolderRow(
     folder: ProjectFolder,
     depth: Int,
+    style: ProjectTreeStyle,
+    topGap: Dp,
     expanded: Boolean,
     onToggle: () -> Unit,
     onAddFolder: () -> Unit,
@@ -643,106 +665,139 @@ private fun FolderRow(
     onMove: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    var menuOpen by remember { mutableStateOf(false) }
+    val nested = style == ProjectTreeStyle.Nested
+    val containerColor = when {
+        nested -> MaterialTheme.colorScheme.surfaceVariant
+        depth == 0 -> MaterialTheme.colorScheme.surfaceVariant
+        else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+    }
 
-    Surface(
-        onClick = onToggle,
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-    ) {
-        Row(
-            modifier = Modifier.padding(
-                start = (12 + depth * 20).dp,
-                top = 10.dp,
-                bottom = 10.dp,
-                end = 4.dp,
-            ),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+    TreeRowFrame(style = style, depth = depth, topGap = topGap) {
+        Surface(
+            onClick = onToggle,
+            modifier = Modifier.fillMaxWidth(),
+            shape = if (nested) MaterialTheme.shapes.large else MaterialTheme.shapes.medium,
+            color = containerColor,
+            contentColor = MaterialTheme.colorScheme.onSurface,
         ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_folder),
-                contentDescription = null,
-                modifier = Modifier.size(22.dp),
-            )
-            Text(
-                text = folder.name,
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.weight(1f),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Icon(
-                painter = painterResource(R.drawable.ic_chevron_right),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(20.dp)
-                    .rotate(if (expanded) 90f else 0f),
-            )
-            Box {
-                IconButton(onClick = { menuOpen = true }) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_more_vert),
-                        contentDescription = stringResource(R.string.action_more),
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-                DropdownMenu(
-                    expanded = menuOpen,
-                    onDismissRequest = { menuOpen = false },
-                ) {
-                    ProjectMenuItem(
-                        icon = R.drawable.ic_folder,
-                        labelRes = R.string.project_add_folder_here,
-                        onClick = {
-                            menuOpen = false
-                            onAddFolder()
-                        },
-                    )
-                    ProjectMenuItem(
-                        icon = R.drawable.ic_section_measurements,
-                        labelRes = R.string.project_add_list_here,
-                        onClick = {
-                            menuOpen = false
-                            onAddList()
-                        },
-                    )
-                    ProjectMenuItem(
-                        icon = R.drawable.ic_section_plans,
-                        labelRes = R.string.project_add_plan_here,
-                        onClick = {
-                            menuOpen = false
-                            onAddPlan()
-                        },
-                    )
-                    ProjectMenuItem(
-                        icon = R.drawable.ic_edit,
-                        labelRes = R.string.action_rename,
-                        onClick = {
-                            menuOpen = false
-                            onRename()
-                        },
-                    )
-                    ProjectMenuItem(
-                        icon = R.drawable.ic_move,
-                        labelRes = R.string.action_move,
-                        onClick = {
-                            menuOpen = false
-                            onMove()
-                        },
-                    )
-                    ProjectMenuItem(
-                        icon = R.drawable.ic_delete,
-                        labelRes = R.string.action_delete,
-                        onClick = {
-                            menuOpen = false
-                            onDelete()
-                        },
-                    )
-                }
+            Row(
+                modifier = Modifier.padding(
+                    start = if (nested) 12.dp else (12 + depth * 20).dp,
+                    top = if (nested) 10.dp else 12.dp,
+                    bottom = if (nested) 10.dp else 12.dp,
+                    end = 4.dp,
+                ),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_chevron_right),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .rotate(if (expanded) 90f else 0f),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Icon(
+                    painter = painterResource(R.drawable.ic_folder),
+                    contentDescription = null,
+                    modifier = Modifier.size(22.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = folder.name,
+                    style = if (nested) {
+                        MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+                    } else {
+                        MaterialTheme.typography.titleMedium
+                    },
+                    modifier = Modifier.weight(1f),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                FolderMenuButton(
+                    onAddFolder = onAddFolder,
+                    onAddList = onAddList,
+                    onAddPlan = onAddPlan,
+                    onRename = onRename,
+                    onMove = onMove,
+                    onDelete = onDelete,
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun FolderMenuButton(
+    onAddFolder: () -> Unit,
+    onAddList: () -> Unit,
+    onAddPlan: () -> Unit,
+    onRename: () -> Unit,
+    onMove: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { menuOpen = true }) {
+            Icon(
+                painter = painterResource(R.drawable.ic_more_vert),
+                contentDescription = stringResource(R.string.action_more),
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        DropdownMenu(
+            expanded = menuOpen,
+            onDismissRequest = { menuOpen = false },
+        ) {
+            ProjectMenuItem(
+                icon = R.drawable.ic_folder,
+                labelRes = R.string.project_add_folder_here,
+                onClick = {
+                    menuOpen = false
+                    onAddFolder()
+                },
+            )
+            ProjectMenuItem(
+                icon = R.drawable.ic_section_measurements,
+                labelRes = R.string.project_add_list_here,
+                onClick = {
+                    menuOpen = false
+                    onAddList()
+                },
+            )
+            ProjectMenuItem(
+                icon = R.drawable.ic_section_plans,
+                labelRes = R.string.project_add_plan_here,
+                onClick = {
+                    menuOpen = false
+                    onAddPlan()
+                },
+            )
+            ProjectMenuItem(
+                icon = R.drawable.ic_edit,
+                labelRes = R.string.action_rename,
+                onClick = {
+                    menuOpen = false
+                    onRename()
+                },
+            )
+            ProjectMenuItem(
+                icon = R.drawable.ic_move,
+                labelRes = R.string.action_move,
+                onClick = {
+                    menuOpen = false
+                    onMove()
+                },
+            )
+            ProjectMenuItem(
+                icon = R.drawable.ic_delete,
+                labelRes = R.string.action_delete,
+                onClick = {
+                    menuOpen = false
+                    onDelete()
+                },
+            )
         }
     }
 }
@@ -753,87 +808,195 @@ private fun ObjectRow(
     name: String,
     meta: String,
     depth: Int,
+    style: ProjectTreeStyle,
+    topGap: Dp,
+    showDivider: Boolean,
     onOpen: () -> Unit,
     onMove: () -> Unit,
     onRemove: () -> Unit,
 ) {
-    var menuOpen by remember { mutableStateOf(false) }
     val icon = when (ref.kind) {
         ProjectObjectKind.MEASUREMENT_LIST -> R.drawable.ic_section_measurements
         ProjectObjectKind.PLAN -> R.drawable.ic_section_plans
     }
+    val nested = style == ProjectTreeStyle.Nested
+    val contentStart = if (nested) 12.dp else (12 + depth * 20).dp
 
-    Surface(
-        onClick = onOpen,
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-    ) {
-        Row(
-            modifier = Modifier.padding(
-                start = (12 + depth * 20).dp,
-                top = 10.dp,
-                bottom = 10.dp,
-                end = 4.dp,
-            ),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Icon(
-                painter = painterResource(icon),
-                contentDescription = null,
-                modifier = Modifier.size(22.dp),
-            )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                Text(
-                    text = name,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+    TreeRowFrame(style = style, depth = depth, topGap = topGap) {
+        Column {
+            if (showDivider) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = contentStart + 28.dp, end = 12.dp),
+                    thickness = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant,
                 )
-                if (meta.isNotEmpty()) {
-                    Text(
-                        text = meta,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
             }
-            Box {
-                IconButton(onClick = { menuOpen = true }) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_more_vert),
-                        contentDescription = stringResource(R.string.action_more),
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-                DropdownMenu(
-                    expanded = menuOpen,
-                    onDismissRequest = { menuOpen = false },
+            Surface(
+                onClick = onOpen,
+                modifier = Modifier.fillMaxWidth(),
+                shape = if (nested) MaterialTheme.shapes.medium else MaterialTheme.shapes.small,
+                color = if (nested) {
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                } else {
+                    Color.Transparent
+                },
+                contentColor = if (nested) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+            ) {
+                Row(
+                    modifier = Modifier.padding(
+                        start = contentStart,
+                        top = 10.dp,
+                        bottom = 10.dp,
+                        end = 4.dp,
+                    ),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    ProjectMenuItem(
-                        icon = R.drawable.ic_move,
-                        labelRes = R.string.action_move,
-                        onClick = {
-                            menuOpen = false
-                            onMove()
-                        },
+                    // Keeps a slot for the folder chevron so object names line up with folder names
+                    // of the same depth.
+                    Spacer(Modifier.size(20.dp))
+                    Icon(
+                        painter = painterResource(icon),
+                        contentDescription = null,
+                        modifier = Modifier.size(22.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    ProjectMenuItem(
-                        icon = R.drawable.ic_close,
-                        labelRes = R.string.project_remove_object,
-                        onClick = {
-                            menuOpen = false
-                            onRemove()
-                        },
-                    )
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text(
+                            text = name,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (meta.isNotEmpty()) {
+                            Text(
+                                text = meta,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    ObjectMenuButton(onMove = onMove, onRemove = onRemove)
                 }
             }
         }
     }
+}
+
+@Composable
+private fun ObjectMenuButton(
+    onMove: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { menuOpen = true }) {
+            Icon(
+                painter = painterResource(R.drawable.ic_more_vert),
+                contentDescription = stringResource(R.string.action_more),
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        DropdownMenu(
+            expanded = menuOpen,
+            onDismissRequest = { menuOpen = false },
+        ) {
+            ProjectMenuItem(
+                icon = R.drawable.ic_move,
+                labelRes = R.string.action_move,
+                onClick = {
+                    menuOpen = false
+                    onMove()
+                },
+            )
+            ProjectMenuItem(
+                icon = R.drawable.ic_close,
+                labelRes = R.string.project_remove_object,
+                onClick = {
+                    menuOpen = false
+                    onRemove()
+                },
+            )
+        }
+    }
+}
+
+/**
+ * Places one tree row. The nested layout insets rows on both sides and draws a guide line for
+ * every ancestor level; the header layout keeps full-width rows and only adds the gap.
+ */
+@Composable
+private fun TreeRowFrame(
+    style: ProjectTreeStyle,
+    depth: Int,
+    topGap: Dp,
+    content: @Composable () -> Unit,
+) {
+    val nested = style == ProjectTreeStyle.Nested
+    val railColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .drawBehind {
+                if (!nested || depth == 0) return@drawBehind
+                val stepPx = NESTED_STEP.toPx()
+                val strokePx = 1.dp.toPx()
+                // The gap belongs to the drawing bounds, so rails stay continuous between rows.
+                val centerY = (size.height + topGap.toPx()) / 2f
+                for (level in 0 until depth) {
+                    val x = level * stepPx + stepPx / 2f
+                    drawLine(railColor, Offset(x, 0f), Offset(x, size.height), strokePx)
+                }
+                val parentX = (depth - 1) * stepPx + stepPx / 2f
+                drawLine(
+                    color = railColor,
+                    start = Offset(parentX, centerY),
+                    end = Offset(depth * stepPx, centerY),
+                    strokeWidth = strokePx,
+                )
+            }
+            .padding(top = topGap),
+    ) {
+        Box(
+            modifier = if (nested) {
+                Modifier.padding(start = NESTED_STEP * depth, end = NESTED_STEP * depth)
+            } else {
+                Modifier
+            },
+        ) {
+            content()
+        }
+    }
+}
+
+private val NESTED_STEP = 16.dp
+
+/**
+ * Vertical gap above a row. Objects of one folder are packed into a group under its header,
+ * while a new folder or an object from another level starts a new group.
+ */
+private fun gapBefore(previous: ProjectTree.Entry?, entry: ProjectTree.Entry): Dp {
+    if (previous == null) return 0.dp
+    if (entry is ProjectTree.Entry.ObjectEntry) {
+        val previousObject = previous as? ProjectTree.Entry.ObjectEntry
+        if (previousObject != null && previousObject.ref.folderId == entry.ref.folderId) return 0.dp
+        val previousFolder = previous as? ProjectTree.Entry.FolderEntry
+        if (previousFolder != null && previousFolder.folder.id == entry.ref.folderId) return 2.dp
+        return 8.dp
+    }
+    if (entry is ProjectTree.Entry.FolderEntry) {
+        val previousFolder = previous as? ProjectTree.Entry.FolderEntry
+        if (previousFolder != null && previousFolder.folder.id == entry.folder.parentId) return 6.dp
+        return 12.dp
+    }
+    return 0.dp
 }
 
 @Composable

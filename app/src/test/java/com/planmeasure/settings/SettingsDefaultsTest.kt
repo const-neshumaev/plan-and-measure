@@ -40,4 +40,9 @@ class SettingsDefaultsTest {
 
         assertEquals(Locale("ru", "RU").language, locale.language)
     }
+
+    @Test
+    fun projectTreeLayoutStartsWithGroupHeaders() {
+        assertEquals(ProjectTreeStyle.Headers, AppSettings().projectTreeStyle)
+    }
 }

@@ -6,9 +6,10 @@ import android.content.res.Configuration
 /**
  * Persists user preferences in SharedPreferences.
  *
- * On the first launch the initial values are mirrored from the system (dark mode and supported
- * language, with English as the fallback) and stored, so later system changes do not override
- * the user's explicit choice. Stored values that are no longer valid are treated as missing:
+ * On the first launch the theme and language are mirrored from the system (dark mode and a
+ * supported language, with English as the fallback) and stored, so later system changes do not
+ * override the user's explicit choice. The tree layout is a taste preference and starts with
+ * [ProjectTreeStyle.Headers]. Stored values that are no longer valid are treated as missing:
  * this also migrates the legacy "System" preference.
  */
 class SettingsStorage(context: Context) {
@@ -19,15 +20,19 @@ class SettingsStorage(context: Context) {
     fun load(): AppSettings {
         val storedTheme = readEnumOrNull<ThemeMode>(KEY_THEME_MODE)
         val storedLanguage = readEnumOrNull<AppLanguage>(KEY_LANGUAGE)
-        if (storedTheme != null && storedLanguage != null) {
-            return AppSettings(themeMode = storedTheme, language = storedLanguage)
-        }
+        val storedTreeStyle = readEnumOrNull<ProjectTreeStyle>(KEY_PROJECT_TREE_STYLE)
 
         val themeMode = storedTheme ?: detectThemeMode()
         val language = storedLanguage ?: detectLanguage()
+        val treeStyle = storedTreeStyle ?: ProjectTreeStyle.Headers
         if (storedTheme == null) saveThemeMode(themeMode)
         if (storedLanguage == null) saveLanguage(language)
-        return AppSettings(themeMode = themeMode, language = language)
+        if (storedTreeStyle == null) saveProjectTreeStyle(treeStyle)
+        return AppSettings(
+            themeMode = themeMode,
+            language = language,
+            projectTreeStyle = treeStyle,
+        )
     }
 
     fun saveThemeMode(mode: ThemeMode) {
@@ -36,6 +41,10 @@ class SettingsStorage(context: Context) {
 
     fun saveLanguage(language: AppLanguage) {
         prefs.edit().putString(KEY_LANGUAGE, language.name).apply()
+    }
+
+    fun saveProjectTreeStyle(style: ProjectTreeStyle) {
+        prefs.edit().putString(KEY_PROJECT_TREE_STYLE, style.name).apply()
     }
 
     private fun detectThemeMode(): ThemeMode {
@@ -56,5 +65,6 @@ class SettingsStorage(context: Context) {
         const val FILE_NAME = "settings"
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_LANGUAGE = "language"
+        const val KEY_PROJECT_TREE_STYLE = "project_tree_style"
     }
 }
