@@ -94,18 +94,32 @@ class MeasurementsViewModel(app: Application) : AndroidViewModel(app) {
         _lastAddedMeasurementId.value = null
     }
 
-    fun createList(name: String) {
+    /**
+     * Creates a list.
+     *
+     * [open] is false when the list is created from a project and the user stays in the tree;
+     * [onCreated] receives the id so the caller can attach the new document immediately.
+     */
+    fun createList(
+        name: String,
+        open: Boolean = true,
+        onCreated: (String) -> Unit = {},
+    ) {
         if (name.isBlank()) return
         viewModelScope.launch {
-            persistence.withLock {
+            val created = persistence.withLock {
                 runCatching { repository.create(name, lastUnit.load()) }
-                    .onSuccess {
-                        _capturePaused.value = false
-                        _lastAddedMeasurementId.value = null
-                        _openList.value = it
+                    .onSuccess { created ->
+                        if (open) {
+                            _capturePaused.value = false
+                            _lastAddedMeasurementId.value = null
+                            _openList.value = created
+                        }
                     }
                     .onFailure { report(R.string.measurement_error_create) }
+                    .getOrNull()
             }
+            if (created != null) onCreated(created.id)
         }
     }
 

@@ -95,17 +95,31 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
         _openPlan.value = null
     }
 
-    fun createPlan(name: String) {
+    /**
+     * Creates a plan.
+     *
+     * [open] is false when the plan is created from a project and the user stays in the tree;
+     * [onCreated] receives the id so the caller can attach the new document immediately.
+     */
+    fun createPlan(
+        name: String,
+        open: Boolean = true,
+        onCreated: (String) -> Unit = {},
+    ) {
         if (name.isBlank()) return
         viewModelScope.launch {
-            persistence.withLock {
+            val created = persistence.withLock {
                 runCatching { repository.create(name, lastUnit.load()) }
-                    .onSuccess {
-                        resetUndo()
-                        _openPlan.value = it
+                    .onSuccess { created ->
+                        if (open) {
+                            resetUndo()
+                            _openPlan.value = created
+                        }
                     }
                     .onFailure { report(R.string.plan_error_create) }
+                    .getOrNull()
             }
+            if (created != null) onCreated(created.id)
         }
     }
 
