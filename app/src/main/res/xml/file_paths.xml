@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Survey photos and the temporary camera target live here; see SurveyPhotoStore. -->
+    <files-path
+        name="survey_photos"
+        path="surveys/photos/" />
+</paths>

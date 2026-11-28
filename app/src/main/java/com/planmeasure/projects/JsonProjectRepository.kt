@@ -13,7 +13,7 @@ import kotlinx.coroutines.withContext
 
 /**
  * Stores every project as one JSON document in [directory], with the same atomic write and backup
- * rules as measurement lists and plans. A single [Mutex] serializes file access, so moving an
+ * rules as measurement lists, plans and surveys. A single [Mutex] serializes file access, so moving an
  * object between two projects cannot interleave with another edit.
  */
 class JsonProjectRepository(

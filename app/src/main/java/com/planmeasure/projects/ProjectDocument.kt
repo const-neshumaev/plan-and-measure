@@ -24,10 +24,11 @@ data class ProjectFolder(
 enum class ProjectObjectKind {
     MEASUREMENT_LIST,
     PLAN,
+    SURVEY,
 }
 
 /**
- * A reference to a measurement list or a plan inside a project.
+ * A reference to a measurement list, a plan or a survey inside a project.
  *
  * The project keeps only the kind and the id: the name is resolved from the live repository, so
  * renaming an object updates every tree without touching the project file. A project never changes
@@ -52,8 +53,8 @@ fun ProjectObjectRef.key(): ProjectObjectKey = ProjectObjectKey(kind, refId)
  * One named project, stored as `projects/<id>.json`.
  *
  * A project is an organizational layer over independent documents: it owns a tree of folders and
- * references, but not the lists and plans themselves. Deleting a project therefore deletes only
- * the tree, and its objects become independent again (ADR 0015).
+ * references, but not the lists, plans and surveys themselves. Deleting a project therefore
+ * deletes only the tree, and its objects become independent again (ADR 0015).
  */
 @Serializable
 data class ProjectDocument(

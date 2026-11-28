@@ -15,8 +15,10 @@ import com.planmeasure.projects.ProjectObjectRef
 import com.planmeasure.projects.ProjectsViewModel
 import com.planmeasure.projects.key
 import com.planmeasure.settings.ProjectTreeStyle
+import com.planmeasure.survey.SurveyViewModel
 import com.planmeasure.ui.measurements.MeasurementListScreen
 import com.planmeasure.ui.plans.PlanEditorScreen
+import com.planmeasure.ui.survey.SurveyEditorScreen
 
 /**
  * Navigation inside the Projects section: saved projects, the project tree, and an object opened
@@ -35,22 +37,28 @@ fun ProjectsFlow(
     viewModel: ProjectsViewModel = viewModel(),
     measurementsViewModel: MeasurementsViewModel = viewModel(),
     plansViewModel: PlansViewModel = viewModel(),
+    surveysViewModel: SurveyViewModel = viewModel(),
 ) {
     val projects by viewModel.projects.collectAsState()
     val openProject by viewModel.openProject.collectAsState()
     val measurementLists by measurementsViewModel.lists.collectAsState()
     val plans by plansViewModel.plans.collectAsState()
+    val surveys by surveysViewModel.surveys.collectAsState()
     val openList by measurementsViewModel.openList.collectAsState()
     val openPlan by plansViewModel.openPlan.collectAsState()
+    val openSurvey by surveysViewModel.openSurvey.collectAsState()
     val objectKey by viewModel.openObject.collectAsState()
 
-    val objectNames = remember(measurementLists, plans) {
+    val objectNames = remember(measurementLists, plans, surveys) {
         buildMap {
             measurementLists.forEach {
                 put(ProjectObjectKey(ProjectObjectKind.MEASUREMENT_LIST, it.id), it.name)
             }
             plans.forEach {
                 put(ProjectObjectKey(ProjectObjectKind.PLAN, it.id), it.name)
+            }
+            surveys.forEach {
+                put(ProjectObjectKey(ProjectObjectKind.SURVEY, it.id), it.name)
             }
         }
     }
@@ -59,6 +67,7 @@ fun ProjectsFlow(
         viewModel.closeObject()
         measurementsViewModel.close()
         plansViewModel.close()
+        surveysViewModel.close()
     }
 
     fun openObject(ref: ProjectObjectRef) {
@@ -66,12 +75,20 @@ fun ProjectsFlow(
         when (ref.kind) {
             ProjectObjectKind.MEASUREMENT_LIST -> {
                 plansViewModel.close()
+                surveysViewModel.close()
                 measurementsViewModel.open(ref.refId)
             }
 
             ProjectObjectKind.PLAN -> {
                 measurementsViewModel.close()
+                surveysViewModel.close()
                 plansViewModel.open(ref.refId)
+            }
+
+            ProjectObjectKind.SURVEY -> {
+                measurementsViewModel.close()
+                plansViewModel.close()
+                surveysViewModel.open(ref.refId)
             }
         }
     }
@@ -88,10 +105,16 @@ fun ProjectsFlow(
             viewModel.removeReferenceEverywhere(ProjectObjectKind.PLAN, id)
         }
     }
+    val deleteSurvey: (String) -> Unit = { id ->
+        surveysViewModel.deleteSurvey(id) {
+            viewModel.removeReferenceEverywhere(ProjectObjectKind.SURVEY, id)
+        }
+    }
     val deleteObject: (ProjectObjectRef) -> Unit = { ref ->
         when (ref.kind) {
             ProjectObjectKind.MEASUREMENT_LIST -> deleteList(ref.refId)
             ProjectObjectKind.PLAN -> deletePlan(ref.refId)
+            ProjectObjectKind.SURVEY -> deleteSurvey(ref.refId)
         }
     }
 
@@ -100,6 +123,7 @@ fun ProjectsFlow(
     val project = openProject
     val list = openList
     val plan = openPlan
+    val survey = openSurvey
     val currentObject = objectKey
 
     when {
@@ -131,16 +155,32 @@ fun ProjectsFlow(
             )
         }
 
+        currentObject != null &&
+            currentObject.kind == ProjectObjectKind.SURVEY &&
+            survey != null &&
+            survey.id == currentObject.refId -> {
+            SurveyEditorScreen(
+                survey = survey,
+                viewModel = surveysViewModel,
+                labViewModel = labViewModel,
+                onOpenConnect = onOpenConnect,
+                onDeleteSurvey = deleteSurvey,
+                onBack = ::closeObject,
+            )
+        }
+
         project != null -> {
             ProjectTreeScreen(
                 project = project,
                 projects = projects,
                 measurementLists = measurementLists,
                 plans = plans,
+                surveys = surveys,
                 treeStyle = treeStyle,
                 viewModel = viewModel,
                 measurementsViewModel = measurementsViewModel,
                 plansViewModel = plansViewModel,
+                surveysViewModel = surveysViewModel,
                 onDeleteObject = deleteObject,
                 onBack = {
                     closeObject()

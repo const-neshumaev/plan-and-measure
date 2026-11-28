@@ -3,7 +3,7 @@ package com.planmeasure.projects
 /**
  * Pure tree operations for a project document.
  *
- * Projects never rewrite measurement lists or plans; they only keep references. The tree is stored
+ * Projects never rewrite measurement lists, plans or surveys; they only keep references. The tree is stored
  * flat (folders with `parentId`, references with `folderId`) and assembled here, so moving a folder
  * or an object is an immutable update with an explicit cycle check.
  */
@@ -25,7 +25,7 @@ object ProjectTree {
      * Rows of the tree in display order: folders before objects on every level, both by name.
      *
      * Objects whose documents no longer exist are skipped: names come from the live repositories,
-     * so a project cannot show a name for a deleted list or plan. The reference itself is kept in
+     * so a project cannot show a name for a deleted list, plan or survey. The reference itself is kept in
      * the document and is not removed behind the user's back.
      */
     fun visibleEntries(
@@ -146,7 +146,7 @@ object ProjectTree {
      * Removes a folder together with its subfolders.
      *
      * Objects inside the removed subtree are lifted to the removed folder's parent, so deleting
-     * structure never deletes measurement lists or plans (ADR 0015).
+     * structure never deletes measurement lists, plans or surveys (ADR 0015).
      */
     fun removeFolder(project: ProjectDocument, folderId: String): ProjectDocument {
         val folder = project.folders.firstOrNull { it.id == folderId } ?: return project
