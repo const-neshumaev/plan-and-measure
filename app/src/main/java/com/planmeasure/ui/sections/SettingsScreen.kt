@@ -96,6 +96,14 @@ fun SettingsScreen(
                 onCheckedChange = settingsViewModel::setShowHints,
             )
         }
+
+        SettingsCard(titleRes = R.string.settings_magnifier) {
+            SettingSwitchRow(
+                label = stringResource(R.string.settings_magnifier_show),
+                checked = settings.showMagnifier,
+                onCheckedChange = settingsViewModel::setShowMagnifier,
+            )
+        }
     }
 }
 

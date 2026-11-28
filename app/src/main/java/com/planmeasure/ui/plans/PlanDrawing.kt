@@ -40,6 +40,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
@@ -126,6 +127,10 @@ enum class PlanTool { Draw, Edit, Dimensions }
  * Every grab is answered with expanding rings and a haptic tick: the finger covers the node or the
  * line, so without them the user cannot tell whether the grab happened. The preview is local state:
  * nothing is written until the gesture ends.
+ *
+ * While a single finger draws or edits, a loupe repeats the scene around it at [MagnifierZoom], so
+ * the vertex hidden under the fingertip stays visible while it is being joined. The loupe is display
+ * only: it has no pointer input and the gesture logic is unchanged.
  */
 @Composable
 fun PlanCanvas(
@@ -147,6 +152,7 @@ fun PlanCanvas(
     showGrid: Boolean = true,
     viewport: PlanViewport = PlanViewport(),
     onViewportChange: (PlanViewport) -> Unit = {},
+    showMagnifier: Boolean = true,
 ) {
     val edgeColor = MaterialTheme.colorScheme.onSurface
     val nodeFill = MaterialTheme.colorScheme.surface
@@ -162,7 +168,22 @@ fun PlanCanvas(
     // primary over a light sheet.
     val darkCanvas = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val selectionHalo = MaterialTheme.colorScheme.onSurface
+    val surfaceColor = MaterialTheme.colorScheme.surface
     val haptic = LocalHapticFeedback.current
+    val paint = PlanPaint(
+        edgeColor = edgeColor,
+        nodeFill = nodeFill,
+        gridColor = gridColor,
+        accentColor = accentColor,
+        errorColor = errorColor,
+        labelFill = labelFill,
+        labelContent = labelContent,
+        mismatchFill = mismatchFill,
+        mismatchContent = mismatchContent,
+        selectionHalo = selectionHalo,
+        darkCanvas = darkCanvas,
+    )
+    val magnifier = rememberMagnifierState()
 
     // Dimension text is laid out in the composition, not on every frame: measuring texts during
     // a pinch would run on each pointer move.
@@ -322,6 +343,7 @@ fun PlanCanvas(
         PlanTool.Draw -> Modifier.pointerInput(tool, plan) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false)
+                magnifier.touch = down.position
                 val canvas = Size(size.width.toFloat(), size.height.toFloat())
                 val world = PlanSize(fitWidth.value.toDouble(), fitHeight.value.toDouble())
                 val padding = SheetMargin.toPx()
@@ -354,6 +376,7 @@ fun PlanCanvas(
                         }
                         val change = event.changes.firstOrNull { it.id == down.id } ?: break
                         lastPosition = change.position
+                        magnifier.touch = change.position
                         if (change.changedToUpIgnoreConsumed()) {
                             finished = true
                             break
@@ -373,6 +396,7 @@ fun PlanCanvas(
                     pinch?.let { event ->
                         // The second finger turns the gesture into a view gesture: the unfinished
                         // segment is dropped, because the user is looking rather than drawing.
+                        magnifier.touch = null
                         gestureStart = null
                         previewEnd = null
                         trackViewGesture(event, liveViewport.value, canvas, world, padding) {
@@ -381,6 +405,7 @@ fun PlanCanvas(
                     }
                 } finally {
                     val end = previewEnd
+                    magnifier.touch = null
                     gestureStart = null
                     previewEnd = null
                     if (finished && dragging && end != null) {
@@ -405,6 +430,7 @@ fun PlanCanvas(
         PlanTool.Edit -> Modifier.pointerInput(tool, plan) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false)
+                magnifier.touch = down.position
                 val canvas = Size(size.width.toFloat(), size.height.toFloat())
                 val world = PlanSize(fitWidth.value.toDouble(), fitHeight.value.toDouble())
                 val padding = SheetMargin.toPx()
@@ -478,6 +504,7 @@ fun PlanCanvas(
                         }
                         val change = event.changes.firstOrNull { it.id == down.id } ?: break
                         lastEventTime = change.uptimeMillis
+                        magnifier.touch = change.position
                         if (change.changedToUpIgnoreConsumed()) {
                             finished = true
                             break
@@ -525,6 +552,7 @@ fun PlanCanvas(
                     pinch?.let { event ->
                         // A second finger cancels the grab: the preview disappears, nothing is
                         // written, and the gesture becomes a view gesture.
+                        magnifier.touch = null
                         rippleAnchor = null
                         draggedNode = null
                         draggedEdge = null
@@ -536,6 +564,7 @@ fun PlanCanvas(
                     draggedNode = null
                     draggedEdge = null
                     rippleAnchor = null
+                    magnifier.touch = null
                     if (finished) {
                         when {
                             grabbedNode != null && nodeDrop != null && nodeWorld != null ->
@@ -619,17 +648,6 @@ fun PlanCanvas(
     Canvas(modifier = modifier.clipToBounds().then(gesture)) {
         val world = PlanSize(fitWidth.value.toDouble(), fitHeight.value.toDouble())
         val transform = planTransform(size, world, viewport, SheetMargin.toPx())
-        val selectionGlowWidth = LineWidth.toPx() * if (darkCanvas) 7.0f else 5.5f
-        val selectedLineWidth = LineWidth.toPx() * if (darkCanvas) 3.0f else 2.4f
-        drawRect(
-            color = gridColor.copy(alpha = 0.5f),
-            topLeft = transform.topLeft(),
-            size = transform.size(world),
-            style = Stroke(width = 1.dp.toPx()),
-        )
-        if (showGrid) drawPlanGrid(transform, world, gridColor)
-
-        val nodesById = plan.nodes.associateBy { it.id }
         val nodeDrag = draggedNode
         val edgeDrag = draggedEdge
 
@@ -642,7 +660,7 @@ fun PlanCanvas(
                 val edge = plan.edges.firstOrNull { it.id == edgeDrag.edgeId }
                 edge?.let {
                     listOf(it.startNodeId, it.endNodeId).mapNotNull { nodeId ->
-                        nodesById[nodeId]?.let { node ->
+                        plan.nodes.firstOrNull { node -> node.id == nodeId }?.let { node ->
                             nodeId to PlanPoint(
                                 x = node.x + edgeDrag.offset.x,
                                 y = node.y + edgeDrag.offset.y,
@@ -653,162 +671,324 @@ fun PlanCanvas(
             }
             else -> emptyMap()
         }
+        val positions = plan.nodes.associateBy(
+            keySelector = { it.id },
+            valueTransform = { overrides[it.id] ?: PlanPoint(it.x, it.y) },
+        )
 
-        fun pointOf(nodeId: String): PlanPoint? =
-            overrides[nodeId] ?: nodesById[nodeId]?.let { PlanPoint(it.x, it.y) }
+        drawPlanScene(
+            plan = plan,
+            transform = transform,
+            world = world,
+            positions = positions,
+            paint = paint,
+            selectedEdgeId = selectedEdgeId,
+            calculationMode = calculationMode,
+            calculationEdgeIds = calculationEdgeIds,
+            calculationFill = calculationFill,
+            mismatched = mismatched,
+            draggedNodeId = nodeDrag?.nodeId,
+            previewStart = gestureStart,
+            previewEnd = previewEnd,
+            ripple = rippleAnchor,
+            edgeDrag = edgeDrag,
+            rippleProgress = rippleProgress.value,
+            labelLayouts = labelLayouts,
+            showGrid = showGrid,
+            showLabels = true,
+            showRipple = true,
+        )
 
-        // The selected area is filled, so the result in the panel has a visible subject even when
-        // its walls are short. Even-odd filling keeps the grid visible in cut-outs instead of
-        // painting a second opaque path over it. Length selection needs no fill: the highlighted
-        // edges are the answer.
-        calculationFill?.let { fill ->
-            val path = Path()
-            path.fillType = PathFillType.EvenOdd
-            addPolygon(path, fill.outline, transform)
-            fill.holes.forEach { hole -> addPolygon(path, hole, transform) }
-            drawPath(path, accentColor.copy(alpha = if (darkCanvas) 0.24f else 0.16f))
-        }
-
-        plan.contours.forEach { contour ->
-            contour.edges.forEach { edge ->
-                val from = pointOf(edge.startNodeId) ?: return@forEach
-                val to = pointOf(edge.endNodeId) ?: return@forEach
-                val calculationSelected = calculationMode != null && edge.id in calculationEdgeIds
-                val selected = edge.id == selectedEdgeId || calculationSelected
-                val measured = edge.dimension != null
-                val differs = edge.id in mismatched
-                // A measured wall is thicker and takes the accent colour, so it separates from a
-                // plain wall at a glance; the selection is a glow on top of the same colour. A wall
-                // whose dimension the drawing cannot hold takes the error colour instead: the label
-                // of a short wall may be hidden, and the disagreement has to stay visible anyway.
-                val width = when {
-                    selected -> selectedLineWidth
-                    measured -> LineWidth.toPx() * 1.8f
-                    else -> LineWidth.toPx()
-                }
-                val startPx = transform.toPx(from)
-                val endPx = transform.toPx(to)
-                val highlighted = if (differs) errorColor else accentColor
-                if (selected) {
-                    val glow = if (darkCanvas) {
-                        selectionHalo.copy(alpha = 0.38f)
-                    } else {
-                        highlighted.copy(alpha = 0.20f)
-                    }
-                    drawLine(
-                        color = glow,
-                        start = startPx,
-                        end = endPx,
-                        strokeWidth = selectionGlowWidth,
-                        cap = StrokeCap.Round,
-                    )
-                }
-                drawLine(
-                    color = when {
-                        differs -> errorColor
-                        selected || measured -> accentColor
-                        else -> edgeColor
-                    },
-                    start = startPx,
-                    end = endPx,
-                    strokeWidth = width,
-                    cap = StrokeCap.Round,
-                )
-            }
-        }
-
-        val start = gestureStart
-        val end = previewEnd
-        if (start != null && end != null && start != end) {
-            drawLine(
-                color = accentColor,
-                start = transform.toPx(start),
-                end = transform.toPx(end),
-                strokeWidth = LineWidth.toPx(),
-                cap = StrokeCap.Round,
-                pathEffect = PathEffect.dashPathEffect(
-                    floatArrayOf(10.dp.toPx(), 8.dp.toPx()),
-                ),
+        // The loupe repeats the scene around the finger, so the vertex it covers stays visible
+        // while the user joins it. It is display only: gestures never reach it.
+        val loupeAlpha = magnifier.alpha.value
+        if (showMagnifier && loupeAlpha > 0.01f) {
+            val radius = MagnifierDiameter.toPx() / 2f
+            val anchor = magnifier.anchor
+            val center = magnifierCenter(
+                anchor = anchor,
+                canvas = size,
+                radius = radius,
+                gap = MagnifierGap.toPx(),
             )
-        }
-
-        plan.nodes.forEach { node ->
-            val point = pointOf(node.id) ?: return@forEach
-            val center = transform.toPx(point)
-            val highlighted = nodeDrag != null && nodeDrag.nodeId == node.id
-            if (highlighted) {
-                drawCircle(
-                    color = accentColor.copy(alpha = 0.18f),
-                    radius = NodeRadius.toPx() * 2.8f,
-                    center = center,
-                )
-            }
-            drawCircle(color = nodeFill, radius = NodeRadius.toPx(), center = center)
-            drawCircle(
-                color = if (highlighted) accentColor else edgeColor,
-                radius = NodeRadius.toPx(),
+            val snapTarget = planSnapTarget(plan, nodeDrag, gestureStart, previewEnd)
+            drawMagnifier(
+                anchor = anchor,
                 center = center,
-                style = Stroke(width = 2.dp.toPx()),
-            )
-        }
-
-        val ripple = rippleAnchor
-        if (ripple != null) {
-            val center = when (ripple) {
-                is GrabRipple.Node -> pointOf(ripple.nodeId)?.let { transform.toPx(it) }
-                is GrabRipple.Edge -> {
-                    // The edge moves with the preview offset, so its rings travel with it.
-                    val offset = edgeDrag?.takeIf { it.edgeId == ripple.edgeId }?.offset
-                        ?: PlanPoint(0.0, 0.0)
-                    transform.toPx(
-                        PlanPoint(
-                            x = ripple.grabPoint.x + offset.x,
-                            y = ripple.grabPoint.y + offset.y,
-                        ),
-                    )
-                }
-            }
-            if (center != null) drawGrabRipple(center, rippleProgress.value, accentColor)
-        }
-
-        if (labelLayouts.isNotEmpty()) {
-            val edgesById = plan.edges.associateBy { it.id }
-            val candidates = labelLayouts.mapNotNull { (edgeId, layout) ->
-                val edge = edgesById[edgeId] ?: return@mapNotNull null
-                val from = pointOf(edge.startNodeId) ?: return@mapNotNull null
-                val to = pointOf(edge.endNodeId) ?: return@mapNotNull null
-                DimensionLabelCandidate(
-                    edgeId = edgeId,
-                    start = transform.toPx(from),
-                    end = transform.toPx(to),
-                    size = Size(layout.size.width.toFloat(), layout.size.height.toFloat()),
+                radius = radius,
+                alpha = loupeAlpha,
+                zoom = MagnifierZoom,
+                fillColor = surfaceColor,
+                rimColor = accentColor,
+                shadowColor = Color.Black,
+                crosshairColor = accentColor,
+            ) {
+                drawPlanScene(
+                    plan = plan,
+                    transform = transform,
+                    world = world,
+                    positions = positions,
+                    paint = paint,
+                    selectedEdgeId = selectedEdgeId,
+                    calculationMode = calculationMode,
+                    calculationEdgeIds = calculationEdgeIds,
+                    calculationFill = null,
+                    mismatched = mismatched,
+                    draggedNodeId = nodeDrag?.nodeId,
+                    previewStart = gestureStart,
+                    previewEnd = previewEnd,
+                    ripple = null,
+                    edgeDrag = null,
+                    rippleProgress = 0f,
+                    labelLayouts = emptyMap(),
+                    showGrid = false,
+                    showLabels = false,
+                    showRipple = false,
                 )
-            }
-            val paddingX = 5.dp.toPx()
-            val paddingY = 2.dp.toPx()
-            placeDimensionLabels(
-                candidates = candidates,
-                selectedEdgeId = selectedEdgeId,
-                gap = 6.dp.toPx(),
-                spacing = 4.dp.toPx(),
-            ).forEach { label ->
-                val layout = labelLayouts[label.edgeId] ?: return@forEach
-                val height = layout.size.height + 2 * paddingY
-                val differs = label.edgeId in mismatched
-                drawRoundRect(
-                    color = if (differs) mismatchFill else labelFill,
-                    topLeft = Offset(label.topLeft.x - paddingX, label.topLeft.y - paddingY),
-                    size = Size(layout.size.width + 2 * paddingX, height),
-                    cornerRadius = CornerRadius(height / 2f),
-                )
-                drawText(
-                    textLayoutResult = layout,
-                    color = if (differs) mismatchContent else labelContent,
-                    topLeft = label.topLeft,
-                )
+                snapTarget?.let { drawSnapTarget(it, transform, accentColor) }
             }
         }
     }
+}
+
+/** Colours and contrast flags of one plan scene, shared by the canvas and its loupe. */
+private class PlanPaint(
+    val edgeColor: Color,
+    val nodeFill: Color,
+    val gridColor: Color,
+    val accentColor: Color,
+    val errorColor: Color,
+    val labelFill: Color,
+    val labelContent: Color,
+    val mismatchFill: Color,
+    val mismatchContent: Color,
+    val selectionHalo: Color,
+    val darkCanvas: Boolean,
+)
+
+/**
+ * Draws the sheet border, the walls, the preview of the current gesture and, optionally, the grid,
+ * the grab rings and the dimension labels.
+ *
+ * The loupe calls the same function with the same transform: the canvas scale makes walls, nodes
+ * and photo grow together. Grid, labels and rings are left out there, because in the small circle
+ * they would pull attention away from the vertex under the finger.
+ */
+private fun DrawScope.drawPlanScene(
+    plan: PlanDocument,
+    transform: WorldTransform,
+    world: PlanSize,
+    positions: Map<String, PlanPoint>,
+    paint: PlanPaint,
+    selectedEdgeId: String?,
+    calculationMode: PlanCalculationKind?,
+    calculationEdgeIds: Set<String>,
+    calculationFill: CalculationFill?,
+    mismatched: Set<String>,
+    draggedNodeId: String?,
+    previewStart: PlanPoint?,
+    previewEnd: PlanPoint?,
+    ripple: GrabRipple?,
+    edgeDrag: EdgeDrag?,
+    rippleProgress: Float,
+    labelLayouts: Map<String, TextLayoutResult>,
+    showGrid: Boolean,
+    showLabels: Boolean,
+    showRipple: Boolean,
+) {
+    val selectionGlowWidth = LineWidth.toPx() * if (paint.darkCanvas) 7.0f else 5.5f
+    val selectedLineWidth = LineWidth.toPx() * if (paint.darkCanvas) 3.0f else 2.4f
+
+    drawRect(
+        color = paint.gridColor.copy(alpha = 0.5f),
+        topLeft = transform.topLeft(),
+        size = transform.size(world),
+        style = Stroke(width = 1.dp.toPx()),
+    )
+    if (showGrid) drawPlanGrid(transform, world, paint.gridColor)
+
+    // The selected area is filled, so the result in the panel has a visible subject even when
+    // its walls are short. Even-odd filling keeps the grid visible in cut-outs instead of
+    // painting a second opaque path over it. Length selection needs no fill: the highlighted
+    // edges are the answer.
+    calculationFill?.let { fill ->
+        val path = Path()
+        path.fillType = PathFillType.EvenOdd
+        addPolygon(path, fill.outline, transform)
+        fill.holes.forEach { hole -> addPolygon(path, hole, transform) }
+        drawPath(path, paint.accentColor.copy(alpha = if (paint.darkCanvas) 0.24f else 0.16f))
+    }
+
+    plan.contours.forEach { contour ->
+        contour.edges.forEach { edge ->
+            val from = positions[edge.startNodeId] ?: return@forEach
+            val to = positions[edge.endNodeId] ?: return@forEach
+            val calculationSelected = calculationMode != null && edge.id in calculationEdgeIds
+            val selected = edge.id == selectedEdgeId || calculationSelected
+            val measured = edge.dimension != null
+            val differs = edge.id in mismatched
+            // A measured wall is thicker and takes the accent colour, so it separates from a
+            // plain wall at a glance; the selection is a glow on top of the same colour. A wall
+            // whose dimension the drawing cannot hold takes the error colour instead: the label
+            // of a short wall may be hidden, and the disagreement has to stay visible anyway.
+            val width = when {
+                selected -> selectedLineWidth
+                measured -> LineWidth.toPx() * 1.8f
+                else -> LineWidth.toPx()
+            }
+            val startPx = transform.toPx(from)
+            val endPx = transform.toPx(to)
+            val highlighted = if (differs) paint.errorColor else paint.accentColor
+            if (selected) {
+                val glow = if (paint.darkCanvas) {
+                    paint.selectionHalo.copy(alpha = 0.38f)
+                } else {
+                    highlighted.copy(alpha = 0.20f)
+                }
+                drawLine(
+                    color = glow,
+                    start = startPx,
+                    end = endPx,
+                    strokeWidth = selectionGlowWidth,
+                    cap = StrokeCap.Round,
+                )
+            }
+            drawLine(
+                color = when {
+                    differs -> paint.errorColor
+                    selected || measured -> paint.accentColor
+                    else -> paint.edgeColor
+                },
+                start = startPx,
+                end = endPx,
+                strokeWidth = width,
+                cap = StrokeCap.Round,
+            )
+        }
+    }
+
+    if (previewStart != null && previewEnd != null && previewStart != previewEnd) {
+        drawLine(
+            color = paint.accentColor,
+            start = transform.toPx(previewStart),
+            end = transform.toPx(previewEnd),
+            strokeWidth = LineWidth.toPx(),
+            cap = StrokeCap.Round,
+            pathEffect = PathEffect.dashPathEffect(
+                floatArrayOf(10.dp.toPx(), 8.dp.toPx()),
+            ),
+        )
+    }
+
+    plan.nodes.forEach { node ->
+        val point = positions[node.id] ?: return@forEach
+        val center = transform.toPx(point)
+        val highlighted = draggedNodeId == node.id
+        if (highlighted) {
+            drawCircle(
+                color = paint.accentColor.copy(alpha = 0.18f),
+                radius = NodeRadius.toPx() * 2.8f,
+                center = center,
+            )
+        }
+        drawCircle(color = paint.nodeFill, radius = NodeRadius.toPx(), center = center)
+        drawCircle(
+            color = if (highlighted) paint.accentColor else paint.edgeColor,
+            radius = NodeRadius.toPx(),
+            center = center,
+            style = Stroke(width = 2.dp.toPx()),
+        )
+    }
+
+    if (showRipple && ripple != null) {
+        val center = when (ripple) {
+            is GrabRipple.Node -> positions[ripple.nodeId]?.let { transform.toPx(it) }
+            is GrabRipple.Edge -> {
+                // The edge moves with the preview offset, so its rings travel with it.
+                val offset = edgeDrag?.takeIf { it.edgeId == ripple.edgeId }?.offset
+                    ?: PlanPoint(0.0, 0.0)
+                transform.toPx(
+                    PlanPoint(
+                        x = ripple.grabPoint.x + offset.x,
+                        y = ripple.grabPoint.y + offset.y,
+                    ),
+                )
+            }
+        }
+        if (center != null) drawGrabRipple(center, rippleProgress, paint.accentColor)
+    }
+
+    if (showLabels && labelLayouts.isNotEmpty()) {
+        val edgesById = plan.edges.associateBy { it.id }
+        val candidates = labelLayouts.mapNotNull { (edgeId, layout) ->
+            val edge = edgesById[edgeId] ?: return@mapNotNull null
+            val from = positions[edge.startNodeId] ?: return@mapNotNull null
+            val to = positions[edge.endNodeId] ?: return@mapNotNull null
+            DimensionLabelCandidate(
+                edgeId = edgeId,
+                start = transform.toPx(from),
+                end = transform.toPx(to),
+                size = Size(layout.size.width.toFloat(), layout.size.height.toFloat()),
+            )
+        }
+        val paddingX = 5.dp.toPx()
+        val paddingY = 2.dp.toPx()
+        placeDimensionLabels(
+            candidates = candidates,
+            selectedEdgeId = selectedEdgeId,
+            gap = 6.dp.toPx(),
+            spacing = 4.dp.toPx(),
+        ).forEach { label ->
+            val layout = labelLayouts[label.edgeId] ?: return@forEach
+            val height = layout.size.height + 2 * paddingY
+            val differs = label.edgeId in mismatched
+            drawRoundRect(
+                color = if (differs) paint.mismatchFill else paint.labelFill,
+                topLeft = Offset(label.topLeft.x - paddingX, label.topLeft.y - paddingY),
+                size = Size(layout.size.width + 2 * paddingX, height),
+                cornerRadius = CornerRadius(height / 2f),
+            )
+            drawText(
+                textLayoutResult = layout,
+                color = if (differs) paint.mismatchContent else paint.labelContent,
+                topLeft = label.topLeft,
+            )
+        }
+    }
+}
+
+/** Existing node the current preview landed on, if the magnet caught one. */
+private fun planSnapTarget(
+    plan: PlanDocument,
+    nodeDrag: NodeDrag?,
+    previewStart: PlanPoint?,
+    previewEnd: PlanPoint?,
+): PlanPoint? {
+    val target = when {
+        nodeDrag != null -> nodeDrag.point
+        previewStart != null && previewEnd != null -> previewEnd
+        else -> null
+    } ?: return null
+    val excludeId = nodeDrag?.nodeId
+    return plan.nodes
+        .firstOrNull { node -> node.id != excludeId && node.x == target.x && node.y == target.y }
+        ?.let { PlanPoint(it.x, it.y) }
+}
+
+/** Ring around the vertex the magnet caught, so the join is visible before the finger lifts. */
+private fun DrawScope.drawSnapTarget(point: PlanPoint, transform: WorldTransform, color: Color) {
+    val center = transform.toPx(point)
+    drawCircle(
+        color = color.copy(alpha = 0.25f),
+        radius = NodeRadius.toPx() * 3.2f,
+        center = center,
+    )
+    drawCircle(
+        color = color,
+        radius = NodeRadius.toPx() * 1.9f,
+        center = center,
+        style = Stroke(width = 2.dp.toPx()),
+    )
 }
 
 /**

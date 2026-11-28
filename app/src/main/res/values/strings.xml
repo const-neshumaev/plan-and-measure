@@ -334,6 +334,8 @@
     <string name="settings_project_images_large">Large</string>
     <string name="settings_hints">Hints</string>
     <string name="settings_hints_show">Show hints</string>
+    <string name="settings_magnifier">Magnifier</string>
+    <string name="settings_magnifier_show">Show magnifier while drawing</string>
 
     <!-- BLE Lab: scan -->
     <string name="lab_title">BLE Lab</string>

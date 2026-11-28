@@ -81,6 +81,7 @@ fun AppRoot(
         HomeSection.Plans -> PlansFlow(
             labViewModel = viewModel,
             showHints = settings.showHints,
+            showMagnifier = settings.showMagnifier,
             onExit = { section = null },
             onOpenConnect = { connectOpen = true },
         )
@@ -90,6 +91,7 @@ fun AppRoot(
             treeStyle = settings.projectTreeStyle,
             treePreview = settings.projectTreePreview,
             showHints = settings.showHints,
+            showMagnifier = settings.showMagnifier,
             onExit = { section = null },
             onOpenConnect = { connectOpen = true },
         )
@@ -97,6 +99,7 @@ fun AppRoot(
         HomeSection.Capture -> SurveyFlow(
             labViewModel = viewModel,
             showHints = settings.showHints,
+            showMagnifier = settings.showMagnifier,
             onExit = { section = null },
             onOpenConnect = { connectOpen = true },
             onOpenPlans = { section = HomeSection.Plans },

@@ -56,4 +56,9 @@ class SettingsDefaultsTest {
     fun hintsAreShownByDefault() {
         assertTrue(AppSettings().showHints)
     }
+
+    @Test
+    fun magnifierIsShownByDefault() {
+        assertTrue(AppSettings().showMagnifier)
+    }
 }

@@ -9,9 +9,10 @@ import android.content.res.Configuration
  * On the first launch the theme and language are mirrored from the system (dark mode and a
  * supported language, with English as the fallback) and stored, so later system changes do not
  * override the user's explicit choice. The tree layout is a taste preference and starts with
- * [ProjectTreeStyle.Nested]; tree previews start small ([ProjectTreePreview.Small]) and the
- * editors show hints. Sections always hide objects that belong to projects. Stored values that
- * are no longer valid are treated as missing: this also migrates the legacy "System" preference.
+ * [ProjectTreeStyle.Nested]; tree previews start small ([ProjectTreePreview.Small]), the editors
+ * show hints and the drawing loupe. Sections always hide objects that belong to projects. Stored
+ * values that are no longer valid are treated as missing: this also migrates the legacy "System"
+ * preference.
  */
 class SettingsStorage(context: Context) {
 
@@ -29,17 +30,21 @@ class SettingsStorage(context: Context) {
         val treeStyle = storedTreeStyle ?: ProjectTreeStyle.Nested
         val treePreview = storedTreePreview ?: ProjectTreePreview.Small
         val showHints = prefs.getBoolean(KEY_SHOW_HINTS, true)
+        // The loupe is helpful for aiming but hides part of the drawing, so the user can turn it off.
+        val showMagnifier = prefs.getBoolean(KEY_SHOW_MAGNIFIER, true)
         if (storedTheme == null) saveThemeMode(themeMode)
         if (storedLanguage == null) saveLanguage(language)
         if (storedTreeStyle == null) saveProjectTreeStyle(treeStyle)
         if (storedTreePreview == null) saveProjectTreePreview(treePreview)
         if (!prefs.contains(KEY_SHOW_HINTS)) saveShowHints(showHints)
+        if (!prefs.contains(KEY_SHOW_MAGNIFIER)) saveShowMagnifier(showMagnifier)
         return AppSettings(
             themeMode = themeMode,
             language = language,
             projectTreeStyle = treeStyle,
             projectTreePreview = treePreview,
             showHints = showHints,
+            showMagnifier = showMagnifier,
         )
     }
 
@@ -63,6 +68,10 @@ class SettingsStorage(context: Context) {
         prefs.edit().putBoolean(KEY_SHOW_HINTS, show).apply()
     }
 
+    fun saveShowMagnifier(show: Boolean) {
+        prefs.edit().putBoolean(KEY_SHOW_MAGNIFIER, show).apply()
+    }
+
     private fun detectThemeMode(): ThemeMode {
         val nightMode = appContext.resources.configuration.uiMode and
             Configuration.UI_MODE_NIGHT_MASK
@@ -84,5 +93,6 @@ class SettingsStorage(context: Context) {
         const val KEY_PROJECT_TREE_STYLE = "project_tree_style"
         const val KEY_PROJECT_TREE_PREVIEW = "project_tree_preview"
         const val KEY_SHOW_HINTS = "show_hints"
+        const val KEY_SHOW_MAGNIFIER = "show_magnifier"
     }
 }

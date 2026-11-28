@@ -72,6 +72,7 @@ fun PlanEditorScreen(
     viewModel: PlansViewModel,
     labViewModel: LabViewModel,
     showHints: Boolean,
+    showMagnifier: Boolean,
     onOpenConnect: () -> Unit,
     onDeletePlan: (String) -> Unit,
     onBack: () -> Unit,
@@ -497,6 +498,7 @@ fun PlanEditorScreen(
                     showGrid = showGrid,
                     viewport = viewport,
                     onViewportChange = { viewport = it },
+                    showMagnifier = showMagnifier,
                     modifier = Modifier.fillMaxSize(),
                 )
                 if (

@@ -32,4 +32,6 @@ data class AppSettings(
     val projectTreePreview: ProjectTreePreview = ProjectTreePreview.Small,
     /** Whether the editors show instructional hints over the drawing. */
     val showHints: Boolean = true,
+    /** Whether the drawing and editing tools show a loupe around the finger. */
+    val showMagnifier: Boolean = true,
 )

@@ -21,6 +21,7 @@ import com.planmeasure.projects.ProjectsViewModel
 fun PlansFlow(
     labViewModel: LabViewModel,
     showHints: Boolean,
+    showMagnifier: Boolean,
     onExit: () -> Unit,
     onOpenConnect: () -> Unit,
     viewModel: PlansViewModel = viewModel(),
@@ -53,6 +54,7 @@ fun PlansFlow(
             viewModel = viewModel,
             labViewModel = labViewModel,
             showHints = showHints,
+            showMagnifier = showMagnifier,
             onOpenConnect = onOpenConnect,
             onDeletePlan = deletePlan,
             onBack = viewModel::close,

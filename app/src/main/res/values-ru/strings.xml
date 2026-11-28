@@ -352,6 +352,8 @@
     <string name="settings_project_images_large">Крупные</string>
     <string name="settings_hints">Подсказки</string>
     <string name="settings_hints_show">Показывать подсказки</string>
+    <string name="settings_magnifier">Лупа</string>
+    <string name="settings_magnifier_show">Показывать лупу при рисовании</string>
 
     <!-- BLE Lab: scan -->
     <string name="lab_title">BLE-лаборатория</string>

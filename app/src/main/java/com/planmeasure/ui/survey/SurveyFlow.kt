@@ -24,6 +24,7 @@ import com.planmeasure.survey.SurveyViewModel
 fun SurveyFlow(
     labViewModel: LabViewModel,
     showHints: Boolean,
+    showMagnifier: Boolean,
     onExit: () -> Unit,
     onOpenConnect: () -> Unit,
     onOpenPlans: () -> Unit,
@@ -73,6 +74,7 @@ fun SurveyFlow(
             viewModel = viewModel,
             labViewModel = labViewModel,
             showHints = showHints,
+            showMagnifier = showMagnifier,
             onOpenConnect = onOpenConnect,
             onDeleteSurvey = deleteSurvey,
             onConvertToPlan = convertSurvey,
