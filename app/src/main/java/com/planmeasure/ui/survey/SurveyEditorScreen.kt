@@ -84,6 +84,7 @@ fun SurveyEditorScreen(
     viewModel: SurveyViewModel,
     labViewModel: LabViewModel,
     showHints: Boolean,
+    showMagnifier: Boolean,
     onOpenConnect: () -> Unit,
     onDeleteSurvey: (String) -> Unit,
     onConvertToPlan: (SurveyDocument, String) -> Unit,
@@ -487,6 +488,7 @@ fun SurveyEditorScreen(
                             onMoveEndpoint = viewModel::moveEndpoint,
                             onMoveSegment = viewModel::moveSegment,
                             onSelectSegment = selectSegment,
+                            showMagnifier = showMagnifier,
                             modifier = Modifier.fillMaxSize(),
                         )
                         if (showHints) {

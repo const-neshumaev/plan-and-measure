@@ -42,4 +42,10 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         storage.saveShowHints(show)
         _settings.update { it.copy(showHints = show) }
     }
+
+    fun setShowMagnifier(show: Boolean) {
+        if (_settings.value.showMagnifier == show) return
+        storage.saveShowMagnifier(show)
+        _settings.update { it.copy(showMagnifier = show) }
+    }
 }
