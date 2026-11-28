@@ -316,6 +316,29 @@ class ProjectTreeTest {
         )
     }
 
+    @Test
+    fun missingObjectKeysSkipsLiveAndUnreadableDocuments() {
+        val live = ProjectObjectKey(ProjectObjectKind.MEASUREMENT_LIST, "live")
+        val unreadable = ProjectObjectKey(ProjectObjectKind.PLAN, "unreadable")
+        val deleted = ProjectObjectKey(ProjectObjectKind.MEASUREMENT_LIST, "deleted")
+        val document = project(
+            objects = listOf(
+                ProjectObjectRef(live.kind, live.refId),
+                ProjectObjectRef(unreadable.kind, unreadable.refId),
+                ProjectObjectRef(deleted.kind, deleted.refId),
+                ProjectObjectRef(deleted.kind, deleted.refId),
+            ),
+        )
+
+        val missing = ProjectTree.missingObjectKeys(
+            project = document,
+            liveKeys = setOf(live),
+            hasDocument = { it == unreadable },
+        )
+
+        assertEquals(listOf(deleted), missing)
+    }
+
     private fun project(
         folders: List<ProjectFolder> = emptyList(),
         objects: List<ProjectObjectRef> = emptyList(),

@@ -42,7 +42,12 @@ class SettingsDefaultsTest {
     }
 
     @Test
-    fun projectTreeLayoutStartsWithGroupHeaders() {
-        assertEquals(ProjectTreeStyle.Headers, AppSettings().projectTreeStyle)
+    fun projectTreeLayoutStartsWithNestedCards() {
+        assertEquals(ProjectTreeStyle.Nested, AppSettings().projectTreeStyle)
+    }
+
+    @Test
+    fun sectionsHideProjectObjectsByDefault() {
+        assertEquals(ObjectScope.WithoutProject, AppSettings().objectScope)
     }
 }

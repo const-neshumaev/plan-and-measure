@@ -76,6 +76,25 @@ fun ProjectsFlow(
         }
     }
 
+    // Deleting an object from the tree or from its editor removes references to it in every
+    // project after the document file is gone (ADR 0017).
+    val deleteList: (String) -> Unit = { id ->
+        measurementsViewModel.deleteList(id) {
+            viewModel.removeReferenceEverywhere(ProjectObjectKind.MEASUREMENT_LIST, id)
+        }
+    }
+    val deletePlan: (String) -> Unit = { id ->
+        plansViewModel.deletePlan(id) {
+            viewModel.removeReferenceEverywhere(ProjectObjectKind.PLAN, id)
+        }
+    }
+    val deleteObject: (ProjectObjectRef) -> Unit = { ref ->
+        when (ref.kind) {
+            ProjectObjectKind.MEASUREMENT_LIST -> deleteList(ref.refId)
+            ProjectObjectKind.PLAN -> deletePlan(ref.refId)
+        }
+    }
+
     BackHandler(enabled = openProject == null) { onExit() }
 
     val project = openProject
@@ -93,6 +112,7 @@ fun ProjectsFlow(
                 viewModel = measurementsViewModel,
                 labViewModel = labViewModel,
                 onOpenConnect = onOpenConnect,
+                onDeleteList = deleteList,
                 onBack = ::closeObject,
             )
         }
@@ -106,6 +126,7 @@ fun ProjectsFlow(
                 viewModel = plansViewModel,
                 labViewModel = labViewModel,
                 onOpenConnect = onOpenConnect,
+                onDeletePlan = deletePlan,
                 onBack = ::closeObject,
             )
         }
@@ -120,6 +141,7 @@ fun ProjectsFlow(
                 viewModel = viewModel,
                 measurementsViewModel = measurementsViewModel,
                 plansViewModel = plansViewModel,
+                onDeleteObject = deleteObject,
                 onBack = {
                     closeObject()
                     viewModel.close()

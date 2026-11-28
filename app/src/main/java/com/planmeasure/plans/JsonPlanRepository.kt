@@ -49,6 +49,9 @@ class JsonPlanRepository(
         }
     }
 
+    override fun hasDocument(id: String): Boolean =
+        isValidId(id) && store.hasAnyVersion(store.fileFor(id))
+
     override suspend fun create(name: String, unit: LengthUnit): PlanDocument =
         withContext(Dispatchers.IO) {
             mutex.withLock {

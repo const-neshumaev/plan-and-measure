@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import com.planmeasure.R
 import com.planmeasure.measurements.MeasurementListSummary
 import com.planmeasure.measurements.MeasurementsViewModel
+import com.planmeasure.settings.ObjectScope
 import com.planmeasure.ui.components.EmptyState
 import com.planmeasure.ui.components.ListNameDialog
 import com.planmeasure.ui.components.defaultNameTimestamp
@@ -58,10 +59,17 @@ import java.util.Locale
 fun MeasurementListsScreen(
     viewModel: MeasurementsViewModel,
     projectNames: Map<String, String> = emptyMap(),
+    objectScope: ObjectScope = ObjectScope.All,
+    onDeleteList: (String) -> Unit,
     onBack: () -> Unit,
 ) {
     val lists by viewModel.lists.collectAsState()
     val loading by viewModel.loading.collectAsState()
+    val visibleLists = if (objectScope == ObjectScope.WithoutProject) {
+        lists.filter { it.id !in projectNames }
+    } else {
+        lists
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     val locale = LocalConfiguration.current.locales[0]
     val defaultTimestamp = remember(locale) { defaultNameTimestamp(locale) }
@@ -113,7 +121,7 @@ fun MeasurementListsScreen(
                 CircularProgressIndicator()
             }
 
-            lists.isEmpty() -> Box(
+            visibleLists.isEmpty() -> Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
@@ -139,7 +147,7 @@ fun MeasurementListsScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items(lists, key = { it.id }) { summary ->
+                items(visibleLists, key = { it.id }) { summary ->
                     MeasurementListRow(
                         summary = summary,
                         projectName = projectNames[summary.id],
@@ -194,7 +202,7 @@ fun MeasurementListsScreen(
                 TextButton(
                     onClick = {
                         deleting = null
-                        viewModel.deleteList(summary.id)
+                        onDeleteList(summary.id)
                     },
                 ) {
                     Text(stringResource(R.string.action_delete))

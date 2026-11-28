@@ -146,22 +146,27 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun deleteOpenPlan() {
-        val current = _openPlan.value ?: return
-        deletePlan(current.id)
-    }
-
-    fun deletePlan(id: String) {
+    /**
+     * Deletes the plan and calls [onDeleted] after the file is gone.
+     *
+     * The callback lets the project section drop references to the object without teaching the
+     * plan domain about projects (ADR 0017).
+     */
+    fun deletePlan(id: String, onDeleted: () -> Unit = {}) {
         // Stop editing before the delete is queued: a gesture arriving in between must not write
         // the document back after the file has been removed.
         if (_openPlan.value?.id == id) close()
         viewModelScope.launch {
             persistence.withLock {
                 runCatching { repository.delete(id) }
+                    .onSuccess { onDeleted() }
                     .onFailure { report(R.string.plan_error_delete) }
             }
         }
     }
+
+    /** Whether a plan document exists on disk, even if it cannot be read right now. */
+    fun hasDocument(id: String): Boolean = repository.hasDocument(id)
 
     /** Applies one drawing gesture; [magnetRadius] is in world units. */
     fun addSegment(from: PlanPoint, to: PlanPoint, magnetRadius: Double) {

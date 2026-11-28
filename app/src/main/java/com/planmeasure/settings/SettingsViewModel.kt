@@ -30,4 +30,10 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         storage.saveProjectTreeStyle(style)
         _settings.update { it.copy(projectTreeStyle = style) }
     }
+
+    fun setObjectScope(scope: ObjectScope) {
+        if (_settings.value.objectScope == scope) return
+        storage.saveObjectScope(scope)
+        _settings.update { it.copy(objectScope = scope) }
+    }
 }

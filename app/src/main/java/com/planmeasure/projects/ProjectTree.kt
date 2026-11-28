@@ -59,6 +59,23 @@ object ProjectTree {
         return entries
     }
 
+    /**
+     * References whose documents are gone for good, in document order without duplicates.
+     *
+     * [liveKeys] are objects that loaded successfully; [hasDocument] reports whether any file
+     * version for a key is still on disk. A key that is not live but still has a file is treated
+     * as unreadable, not deleted, and is not returned: a temporary read failure must not erase
+     * the reference (ADR 0017).
+     */
+    fun missingObjectKeys(
+        project: ProjectDocument,
+        liveKeys: Set<ProjectObjectKey>,
+        hasDocument: (ProjectObjectKey) -> Boolean,
+    ): List<ProjectObjectKey> = project.objects
+        .map { it.key() }
+        .distinct()
+        .filter { key -> key !in liveKeys && !hasDocument(key) }
+
     /** Number of references whose documents still exist. */
     fun liveObjectCount(
         project: ProjectDocument,

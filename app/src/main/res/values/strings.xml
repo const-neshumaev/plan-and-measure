@@ -192,9 +192,19 @@
     <string name="project_no_plans">No plans to add. Create a new one.</string>
     <string name="project_move_object_title">Move “%1$s”</string>
     <string name="project_move_folder_title">Move “%1$s”</string>
+    <string name="project_drag_root_zone">Move to project root</string>
+    <string name="project_drag_to_folder">to “%1$s”?</string>
+    <string name="project_drag_to_root">to the project root?</string>
+    <string name="project_drag_invalid">A folder cannot be moved into itself or its subfolder</string>
     <string name="project_root">Project root</string>
     <string name="project_in_project">In project: %1$s</string>
     <string name="project_remove_object">Remove from project</string>
+    <string name="project_delete_object">Delete object</string>
+    <string name="project_remove_missing_references">Remove links to deleted objects</string>
+    <plurals name="project_remove_missing_references_text">
+        <item quantity="one">%1$d link to a deleted object will be removed from the project.</item>
+        <item quantity="other">%1$d links to deleted objects will be removed from the project.</item>
+    </plurals>
     <string name="project_error_save">Could not save the project</string>
     <string name="project_error_create">Could not create the project</string>
     <string name="project_error_delete">Could not delete the project</string>
@@ -212,6 +222,9 @@
     <string name="settings_language">Language</string>
     <string name="settings_language_english">English</string>
     <string name="settings_language_russian">Русский</string>
+    <string name="settings_object_scope">Objects in sections</string>
+    <string name="settings_object_scope_all">All</string>
+    <string name="settings_object_scope_without_project">Without project</string>
     <string name="settings_project_tree">Project tree</string>
     <string name="settings_project_tree_headers">Group headers</string>
     <string name="settings_project_tree_nested">Nested cards</string>

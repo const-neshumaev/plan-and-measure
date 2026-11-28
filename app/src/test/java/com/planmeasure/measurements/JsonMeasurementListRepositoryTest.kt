@@ -46,12 +46,29 @@ class JsonMeasurementListRepositoryTest {
 
         assertEquals("Living room", created.name)
         assertTrue(File(directory, "$LIST_ID.json").isFile)
+        assertTrue(repository.hasDocument(LIST_ID))
+        assertFalse(repository.hasDocument("not-a-uuid"))
         assertEquals(1, repository.lists.value.size)
         assertEquals(0, repository.lists.value.single().measurementCount)
 
         val reopened = repository()
         reopened.reload()
         assertEquals(created, reopened.load(LIST_ID))
+    }
+
+    @Test
+    fun hasDocumentStillSeesTheBackupWhenTheMainFileIsGone() = runBlocking {
+        val repository = repository()
+        repository.reload()
+
+        repository.create("Living room")
+        val created = repository.load(LIST_ID)!!
+        repository.update(created.copy(name = "Hall"))
+        assertTrue(File(directory, "$LIST_ID.json.bak").isFile)
+
+        File(directory, "$LIST_ID.json").delete()
+
+        assertTrue(repository.hasDocument(LIST_ID))
     }
 
     @Test
@@ -85,6 +102,7 @@ class JsonMeasurementListRepositoryTest {
         assertNull(repository.load(LIST_ID))
         assertTrue(repository.lists.value.isEmpty())
         assertFalse(File(directory, "$LIST_ID.json").exists())
+        assertFalse(repository.hasDocument(LIST_ID))
     }
 
     @Test

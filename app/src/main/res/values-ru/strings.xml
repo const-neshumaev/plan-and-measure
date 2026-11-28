@@ -202,9 +202,21 @@
     <string name="project_no_plans">Нет планов для добавления. Создайте новый.</string>
     <string name="project_move_object_title">Переместить «%1$s»</string>
     <string name="project_move_folder_title">Переместить «%1$s»</string>
+    <string name="project_drag_root_zone">Переместить в корень проекта</string>
+    <string name="project_drag_to_folder">в «%1$s»?</string>
+    <string name="project_drag_to_root">в корень проекта?</string>
+    <string name="project_drag_invalid">Папку нельзя переместить внутрь себя или её подпапки</string>
     <string name="project_root">Корень проекта</string>
     <string name="project_in_project">В проекте: %1$s</string>
     <string name="project_remove_object">Исключить из проекта</string>
+    <string name="project_delete_object">Удалить объект</string>
+    <string name="project_remove_missing_references">Удалить ссылки на удалённые объекты</string>
+    <plurals name="project_remove_missing_references_text">
+        <item quantity="one">Из проекта будет удалена %1$d ссылка на удалённый объект.</item>
+        <item quantity="few">Из проекта будут удалены %1$d ссылки на удалённые объекты.</item>
+        <item quantity="many">Из проекта будет удалено %1$d ссылок на удалённые объекты.</item>
+        <item quantity="other">Из проекта будет удалено %1$d ссылки на удалённые объекты.</item>
+    </plurals>
     <string name="project_error_save">Не удалось сохранить проект</string>
     <string name="project_error_create">Не удалось создать проект</string>
     <string name="project_error_delete">Не удалось удалить проект</string>
@@ -222,6 +234,9 @@
     <string name="settings_language">Язык</string>
     <string name="settings_language_english">English</string>
     <string name="settings_language_russian">Русский</string>
+    <string name="settings_object_scope">Объекты в разделах</string>
+    <string name="settings_object_scope_all">Все</string>
+    <string name="settings_object_scope_without_project">Без проекта</string>
     <string name="settings_project_tree">Дерево проектов</string>
     <string name="settings_project_tree_headers">Заголовки групп</string>
     <string name="settings_project_tree_nested">Вложенные карточки</string>

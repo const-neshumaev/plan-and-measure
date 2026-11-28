@@ -49,11 +49,28 @@ class JsonPlanRepositoryTest {
 
         assertEquals("Living room", created.name)
         assertTrue(File(directory, "$PLAN_ID.json").isFile)
+        assertTrue(repository.hasDocument(PLAN_ID))
+        assertFalse(repository.hasDocument("not-a-uuid"))
         assertEquals(1, repository.plans.value.size)
 
         val reopened = repository()
         reopened.reload()
         assertEquals(created, reopened.load(PLAN_ID))
+    }
+
+    @Test
+    fun hasDocumentStillSeesTheBackupWhenTheMainFileIsGone() = runBlocking {
+        val repository = repository()
+        repository.reload()
+
+        repository.create("Living room")
+        val created = repository.load(PLAN_ID)!!
+        repository.update(created.copy(name = "Hall"))
+        assertTrue(File(directory, "$PLAN_ID.json.bak").isFile)
+
+        File(directory, "$PLAN_ID.json").delete()
+
+        assertTrue(repository.hasDocument(PLAN_ID))
     }
 
     @Test
@@ -90,6 +107,7 @@ class JsonPlanRepositoryTest {
         assertNull(repository.load(PLAN_ID))
         assertTrue(repository.plans.value.isEmpty())
         assertFalse(File(directory, "$PLAN_ID.json").exists())
+        assertFalse(repository.hasDocument(PLAN_ID))
     }
 
     @Test
