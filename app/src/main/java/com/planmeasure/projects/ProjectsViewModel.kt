@@ -19,8 +19,8 @@ import kotlinx.coroutines.sync.withLock
  * Owns saved projects and the project tree that is currently open.
  *
  * A project is an organizational layer: attaching, moving and removing objects changes only
- * project documents. Measurement lists and plans are owned by their own ViewModels and are never
- * rewritten here (ADR 0015). Moving an object to another project is one repository operation over
+ * project documents. Measurement lists, plans and surveys are owned by their own ViewModels and
+ * are never rewritten here (ADR 0015). Moving an object to another project is one repository operation over
  * both documents, so an object never stays in two projects.
  */
 class ProjectsViewModel(app: Application) : AndroidViewModel(app) {

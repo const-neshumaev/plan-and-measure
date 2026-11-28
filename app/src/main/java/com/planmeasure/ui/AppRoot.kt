@@ -16,8 +16,8 @@ import com.planmeasure.ui.lab.LabFlow
 import com.planmeasure.ui.measurements.MeasurementsFlow
 import com.planmeasure.ui.plans.PlansFlow
 import com.planmeasure.ui.projects.ProjectsFlow
-import com.planmeasure.ui.sections.CaptureScreen
 import com.planmeasure.ui.sections.SettingsScreen
+import com.planmeasure.ui.survey.SurveyFlow
 
 enum class HomeSection {
     Measurements,
@@ -49,6 +49,7 @@ fun AppRoot(
             section != HomeSection.Measurements &&
             section != HomeSection.Plans &&
             section != HomeSection.Projects &&
+            section != HomeSection.Capture &&
             !labOpen &&
             !connectOpen,
     ) { section = null }
@@ -91,7 +92,13 @@ fun AppRoot(
             onExit = { section = null },
             onOpenConnect = { connectOpen = true },
         )
-        HomeSection.Capture -> CaptureScreen(onBack = { section = null })
+
+        HomeSection.Capture -> SurveyFlow(
+            labViewModel = viewModel,
+            objectScope = settings.objectScope,
+            onExit = { section = null },
+            onOpenConnect = { connectOpen = true },
+        )
         HomeSection.Settings -> SettingsScreen(
             settingsViewModel = settingsViewModel,
             onBack = { section = null },

@@ -47,3 +47,5 @@ ADR не нужен для багфиксов, переименований, л�
 | [0018](0018-drag-project-tree-rows.md) | Перетаскивать строки дерева проекта с подтверждением | Accepted | 2026-11-28 |
 | [0019](0019-default-nested-cards-and-project-scope.md) | Вложенные карточки и «Без проекта» по умолчанию | Accepted | 2026-11-28 |
 | [0020](0020-plan-calculations-from-geometry.md) | Считать площади, периметры и длины по геометрии плана | Accepted | 2026-11-28 |
+| [0021](0021-surveys-are-annotated-photos.md) | Делать съёмку аннотированным фото, а не масштабным планом | Accepted | 2026-11-28 |
+| [0022](0022-store-survey-photos-with-document.md) | Хранить фото съёмки рядом с документом | Accepted | 2026-11-28 |

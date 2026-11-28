@@ -63,7 +63,7 @@
     <string name="section_projects">Проекты</string>
     <string name="section_projects_details">Помещения, планы и замеры</string>
     <string name="section_capture">Съёмка</string>
-    <string name="section_capture_details">Фото, привязанные к замерам</string>
+    <string name="section_capture_details">Наброски на фото с размерами</string>
     <string name="section_settings">Настройки</string>
     <string name="section_settings_details">Тема, язык и вид дерева проектов</string>
 
@@ -223,7 +223,7 @@
     <string name="project_default_name">Проект %1$s</string>
     <string name="project_rename_title">Переименовать проект</string>
     <string name="project_delete_title">Удалить проект?</string>
-    <string name="project_delete_text">Проект «%1$s» будет удалён. Его списки измерений и планы останутся и станут независимыми.</string>
+    <string name="project_delete_text">Проект «%1$s» будет удалён. Списки измерений, планы и съёмки останутся и станут независимыми.</string>
     <string name="project_updated">Обновлён %1$s</string>
     <string name="project_meta">%1$s · %2$s</string>
     <plurals name="project_folders_count">
@@ -239,9 +239,9 @@
         <item quantity="other">%1$d объекта</item>
     </plurals>
     <string name="project_lists_empty_title">Проектов пока нет</string>
-    <string name="project_lists_empty_text">Создайте проект, чтобы объединить списки измерений и планы в папки.</string>
+    <string name="project_lists_empty_text">Создайте проект, чтобы сгруппировать списки измерений, планы и съёмки по папкам.</string>
     <string name="project_tree_empty_title">Проект пуст</string>
-    <string name="project_tree_empty_text">Добавьте папку или привяжите существующий список измерений или план.</string>
+    <string name="project_tree_empty_text">Добавьте папку или привяжите существующий список измерений, план либо съёмку.</string>
     <string name="project_folder_new">Новая папка</string>
     <string name="project_folder_name">Название папки</string>
     <string name="project_folder_name_hint">например, Гостиная</string>
@@ -252,12 +252,16 @@
     <string name="project_add_folder_here">Добавить подпапку</string>
     <string name="project_add_list_here">Добавить список измерений</string>
     <string name="project_add_plan_here">Добавить план</string>
+    <string name="project_add_survey_here">Добавить съёмку</string>
     <string name="project_add_list_title">Добавить список измерений</string>
     <string name="project_add_plan_title">Добавить план</string>
+    <string name="project_add_survey_title">Добавить съёмку</string>
     <string name="project_create_new_list">Новый список измерений</string>
     <string name="project_create_new_plan">Новый план</string>
-    <string name="project_no_lists">Нет списков измерений для добавления. Создайте новый.</string>
-    <string name="project_no_plans">Нет планов для добавления. Создайте новый.</string>
+    <string name="project_create_new_survey">Новая съёмка</string>
+    <string name="project_no_lists">Списков измерений для добавления нет. Создайте новый.</string>
+    <string name="project_no_plans">Планов для добавления нет. Создайте новый.</string>
+    <string name="project_no_surveys">Съёмок для добавления нет. Создайте новую.</string>
     <string name="project_move_object_title">Переместить «%1$s»</string>
     <string name="project_move_folder_title">Переместить «%1$s»</string>
     <string name="project_drag_root_zone">Переместить в корень проекта</string>
@@ -280,10 +284,54 @@
     <string name="project_error_delete">Не удалось удалить проект</string>
     <string name="project_error_load">Не удалось открыть проект</string>
 
-    <!-- Capture (placeholder) -->
-    <string name="capture_preview">Изображение с камеры</string>
-    <string name="capture_preview_hint">Здесь появится видоискатель камеры.</string>
-    <string name="capture_attach">Привязать последний замер</string>
+    <!-- Photo sketches (Capture) -->
+    <string name="survey_new">Новая съёмка</string>
+    <string name="survey_name">Название съёмки</string>
+    <string name="survey_name_hint">напр. Гостиная</string>
+    <string name="survey_default_name">Съёмка %1$s</string>
+    <string name="survey_rename_title">Переименовать съёмку</string>
+    <string name="survey_delete_title">Удалить съёмку?</string>
+    <string name="survey_delete_text">Фото и набросок «%1$s» будут удалены безвозвратно.</string>
+    <string name="survey_updated">Обновлено %1$s</string>
+    <string name="survey_meta">%1$s · %2$s</string>
+    <plurals name="survey_segments_count">
+        <item quantity="one">%1$d линия</item>
+        <item quantity="few">%1$d линии</item>
+        <item quantity="many">%1$d линий</item>
+        <item quantity="other">%1$d линии</item>
+    </plurals>
+    <string name="survey_lists_empty_title">Съёмок пока нет</string>
+    <string name="survey_lists_empty_text">Создайте съёмку, чтобы рисовать стены и ставить размеры прямо на фото.</string>
+    <string name="survey_photo_empty_title">Фото пока нет</string>
+    <string name="survey_photo_empty_text">Сделайте фото или выберите его из галереи, затем обведите контур и поставьте размеры.</string>
+    <string name="survey_take_photo">Сделать фото</string>
+    <string name="survey_choose_photo">Выбрать из галереи</string>
+    <string name="survey_take_new_photo">Сделать новое фото</string>
+    <string name="survey_choose_another_photo">Выбрать другое фото</string>
+    <string name="survey_photo_loading">Загрузка фото…</string>
+    <string name="survey_photo_missing">Файл фото не найден.</string>
+    <string name="survey_draw_hint">Проведите пальцем вдоль стены, чтобы нарисовать линию.\nДва пальца меняют масштаб и двигают фото.</string>
+    <string name="survey_edit_hint">Потяните за конец линии, чтобы переместить его, или перетащите линию целиком. Коснитесь линии, чтобы выделить её.\nДва пальца меняют масштаб и двигают фото.</string>
+    <string name="survey_dimension_hint">Коснитесь линии, чтобы поставить размер.\nДва пальца меняют масштаб и двигают фото.</string>
+    <string name="survey_tool_draw">Рисование</string>
+    <string name="survey_tool_edit">Правка</string>
+    <string name="survey_tool_dimension">Размеры</string>
+    <string name="survey_dimension_title">Размер линии</string>
+    <string name="survey_dimension_value">Длина</string>
+    <string name="survey_dimension_comment">Комментарий</string>
+    <string name="survey_dimension_comment_hint">Что это за размер?</string>
+    <string name="survey_dimension_delete">Удалить размер</string>
+    <string name="survey_dimension_hint_connected">Следующее показание дальномера заменит это значение.</string>
+    <string name="survey_dimension_hint_disconnected">Дальномер не подключён. Введите значение вручную.</string>
+    <string name="survey_delete_segment">Удалить линию</string>
+    <string name="survey_clear">Очистить набросок</string>
+    <string name="survey_clear_title">Очистить набросок?</string>
+    <string name="survey_clear_text">Все линии на съёмке «%1$s» будут удалены. Фото останется.</string>
+    <string name="survey_error_save">Не удалось сохранить съёмку</string>
+    <string name="survey_error_create">Не удалось создать съёмку</string>
+    <string name="survey_error_delete">Не удалось удалить съёмку</string>
+    <string name="survey_error_load">Не удалось открыть съёмку</string>
+    <string name="survey_error_photo">Не удалось добавить фото</string>
 
     <!-- Settings -->
     <string name="settings_theme">Тема</string>

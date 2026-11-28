@@ -92,6 +92,8 @@ import com.planmeasure.projects.ProjectTree
 import com.planmeasure.projects.ProjectsViewModel
 import com.planmeasure.projects.key
 import com.planmeasure.settings.ProjectTreeStyle
+import com.planmeasure.survey.SurveyDocument
+import com.planmeasure.survey.SurveyViewModel
 import com.planmeasure.ui.components.EmptyState
 import com.planmeasure.ui.components.ListNameDialog
 import com.planmeasure.ui.components.defaultNameTimestamp
@@ -106,10 +108,12 @@ fun ProjectTreeScreen(
     projects: List<ProjectDocument>,
     measurementLists: List<MeasurementListSummary>,
     plans: List<PlanDocument>,
+    surveys: List<SurveyDocument>,
     treeStyle: ProjectTreeStyle,
     viewModel: ProjectsViewModel,
     measurementsViewModel: MeasurementsViewModel,
     plansViewModel: PlansViewModel,
+    surveysViewModel: SurveyViewModel,
     onDeleteObject: (ProjectObjectRef) -> Unit,
     onBack: () -> Unit,
     onOpenObject: (ProjectObjectRef) -> Unit,
@@ -120,6 +124,7 @@ fun ProjectTreeScreen(
     val defaultFolderName = stringResource(R.string.project_folder_default_name, defaultTimestamp)
     val defaultListName = stringResource(R.string.measurement_list_default_name, defaultTimestamp)
     val defaultPlanName = stringResource(R.string.plan_default_name, defaultTimestamp)
+    val defaultSurveyName = stringResource(R.string.survey_default_name, defaultTimestamp)
 
     val collapsedSaver = remember {
         listSaver<Set<String>, String>(
@@ -150,13 +155,17 @@ fun ProjectTreeScreen(
 
     val measurementById = remember(measurementLists) { measurementLists.associateBy { it.id } }
     val planById = remember(plans) { plans.associateBy { it.id } }
-    val objectNames = remember(measurementLists, plans) {
+    val surveyById = remember(surveys) { surveys.associateBy { it.id } }
+    val objectNames = remember(measurementLists, plans, surveys) {
         buildMap {
             measurementLists.forEach {
                 put(ProjectObjectKey(ProjectObjectKind.MEASUREMENT_LIST, it.id), it.name)
             }
             plans.forEach {
                 put(ProjectObjectKey(ProjectObjectKind.PLAN, it.id), it.name)
+            }
+            surveys.forEach {
+                put(ProjectObjectKey(ProjectObjectKind.SURVEY, it.id), it.name)
             }
         }
     }
@@ -174,6 +183,9 @@ fun ProjectTreeScreen(
 
                 ProjectObjectKind.PLAN ->
                     plansViewModel.hasDocument(key.refId)
+
+                ProjectObjectKind.SURVEY ->
+                    surveysViewModel.hasDocument(key.refId)
             }
         }
     }
@@ -476,6 +488,19 @@ fun ProjectTreeScreen(
                             openAddObject(null, ProjectObjectKind.PLAN)
                         },
                     )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.project_add_survey_title)) },
+                        leadingIcon = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_section_capture),
+                                contentDescription = null,
+                            )
+                        },
+                        onClick = {
+                            fabMenuOpen = false
+                            openAddObject(null, ProjectObjectKind.SURVEY)
+                        },
+                    )
                 }
             }
         },
@@ -602,6 +627,9 @@ fun ProjectTreeScreen(
                                 onAddPlan = {
                                     openAddObject(entry.folder.id, ProjectObjectKind.PLAN)
                                 },
+                                onAddSurvey = {
+                                    openAddObject(entry.folder.id, ProjectObjectKind.SURVEY)
+                                },
                                 onRename = { renamingFolder = entry.folder },
                                 onMove = { movingFolder = entry.folder },
                                 onDelete = { deletingFolder = entry.folder },
@@ -633,6 +661,19 @@ fun ProjectTreeScreen(
                                                 R.plurals.plan_edges_count,
                                                 plan.edgeCount,
                                                 plan.edgeCount,
+                                            )
+                                        }
+                                    }
+
+                                    ProjectObjectKind.SURVEY -> {
+                                        val survey = surveyById[ref.refId]
+                                        if (survey == null) {
+                                            ""
+                                        } else {
+                                            pluralStringResource(
+                                                R.plurals.survey_segments_count,
+                                                survey.segmentCount,
+                                                survey.segmentCount,
                                             )
                                         }
                                     }
@@ -788,33 +829,21 @@ fun ProjectTreeScreen(
     }
 
     deletingObject?.let { ref ->
-        val isList = ref.kind == ProjectObjectKind.MEASUREMENT_LIST
         val name = objectNames[ref.key()] ?: ref.refId
+        val titleRes = when (ref.kind) {
+            ProjectObjectKind.MEASUREMENT_LIST -> R.string.measurement_list_delete_title
+            ProjectObjectKind.PLAN -> R.string.plan_delete_title
+            ProjectObjectKind.SURVEY -> R.string.survey_delete_title
+        }
+        val textRes = when (ref.kind) {
+            ProjectObjectKind.MEASUREMENT_LIST -> R.string.measurement_list_delete_text
+            ProjectObjectKind.PLAN -> R.string.plan_delete_text
+            ProjectObjectKind.SURVEY -> R.string.survey_delete_text
+        }
         AlertDialog(
             onDismissRequest = { deletingObject = null },
-            title = {
-                Text(
-                    stringResource(
-                        if (isList) {
-                            R.string.measurement_list_delete_title
-                        } else {
-                            R.string.plan_delete_title
-                        },
-                    ),
-                )
-            },
-            text = {
-                Text(
-                    stringResource(
-                        if (isList) {
-                            R.string.measurement_list_delete_text
-                        } else {
-                            R.string.plan_delete_text
-                        },
-                        name,
-                    ),
-                )
-            },
+            title = { Text(stringResource(titleRes)) },
+            text = { Text(stringResource(textRes, name)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -1038,6 +1067,24 @@ fun ProjectTreeScreen(
                     )
                 }
                 .sortedBy { it.name.lowercase() }
+
+            ProjectObjectKind.SURVEY -> surveys
+                .filterNot { survey ->
+                    ProjectTree.containsObject(
+                        project,
+                        ProjectObjectKey(ProjectObjectKind.SURVEY, survey.id),
+                    )
+                }
+                .map { survey ->
+                    val key = ProjectObjectKey(ProjectObjectKind.SURVEY, survey.id)
+                    AvailableObject(
+                        key = key,
+                        name = survey.name,
+                        count = survey.segmentCount,
+                        projectName = ProjectTree.projectNameOf(projects, key),
+                    )
+                }
+                .sortedBy { it.name.lowercase() }
         }
         AddObjectDialog(
             kind = addKind,
@@ -1062,29 +1109,31 @@ fun ProjectTreeScreen(
         runCatching { ProjectObjectKind.valueOf(value) }.getOrNull()
     }
     if (createKind != null) {
+        val titleRes = when (createKind) {
+            ProjectObjectKind.MEASUREMENT_LIST -> R.string.project_create_new_list
+            ProjectObjectKind.PLAN -> R.string.project_create_new_plan
+            ProjectObjectKind.SURVEY -> R.string.project_create_new_survey
+        }
+        val nameRes = when (createKind) {
+            ProjectObjectKind.MEASUREMENT_LIST -> R.string.measurement_list_name
+            ProjectObjectKind.PLAN -> R.string.plan_name
+            ProjectObjectKind.SURVEY -> R.string.survey_name
+        }
+        val hintRes = when (createKind) {
+            ProjectObjectKind.MEASUREMENT_LIST -> R.string.measurement_list_name_hint
+            ProjectObjectKind.PLAN -> R.string.plan_name_hint
+            ProjectObjectKind.SURVEY -> R.string.survey_name_hint
+        }
+        val initialName = when (createKind) {
+            ProjectObjectKind.MEASUREMENT_LIST -> defaultListName
+            ProjectObjectKind.PLAN -> defaultPlanName
+            ProjectObjectKind.SURVEY -> defaultSurveyName
+        }
         ListNameDialog(
-            title = stringResource(
-                if (createKind == ProjectObjectKind.MEASUREMENT_LIST) {
-                    R.string.project_create_new_list
-                } else {
-                    R.string.project_create_new_plan
-                },
-            ),
-            labelRes = if (createKind == ProjectObjectKind.MEASUREMENT_LIST) {
-                R.string.measurement_list_name
-            } else {
-                R.string.plan_name
-            },
-            hintRes = if (createKind == ProjectObjectKind.MEASUREMENT_LIST) {
-                R.string.measurement_list_name_hint
-            } else {
-                R.string.plan_name_hint
-            },
-            initialName = if (createKind == ProjectObjectKind.MEASUREMENT_LIST) {
-                defaultListName
-            } else {
-                defaultPlanName
-            },
+            title = stringResource(titleRes),
+            labelRes = nameRes,
+            hintRes = hintRes,
+            initialName = initialName,
             confirmLabel = stringResource(R.string.action_create),
             onConfirm = { name ->
                 val folderId = createObjectFolderId
@@ -1098,6 +1147,12 @@ fun ProjectTreeScreen(
                     )
 
                     ProjectObjectKind.PLAN -> plansViewModel.createPlan(
+                        name = name,
+                        open = false,
+                        onCreated = { id -> viewModel.attachObject(createKind, id, folderId) },
+                    )
+
+                    ProjectObjectKind.SURVEY -> surveysViewModel.createSurvey(
                         name = name,
                         open = false,
                         onCreated = { id -> viewModel.attachObject(createKind, id, folderId) },
@@ -1123,6 +1178,7 @@ private fun FolderRow(
     onAddFolder: () -> Unit,
     onAddList: () -> Unit,
     onAddPlan: () -> Unit,
+    onAddSurvey: () -> Unit,
     onRename: () -> Unit,
     onMove: () -> Unit,
     onDelete: () -> Unit,
@@ -1189,6 +1245,7 @@ private fun FolderRow(
                     onAddFolder = onAddFolder,
                     onAddList = onAddList,
                     onAddPlan = onAddPlan,
+                    onAddSurvey = onAddSurvey,
                     onRename = onRename,
                     onMove = onMove,
                     onDelete = onDelete,
@@ -1203,6 +1260,7 @@ private fun FolderMenuButton(
     onAddFolder: () -> Unit,
     onAddList: () -> Unit,
     onAddPlan: () -> Unit,
+    onAddSurvey: () -> Unit,
     onRename: () -> Unit,
     onMove: () -> Unit,
     onDelete: () -> Unit,
@@ -1242,6 +1300,14 @@ private fun FolderMenuButton(
                 onClick = {
                     menuOpen = false
                     onAddPlan()
+                },
+            )
+            ProjectMenuItem(
+                icon = R.drawable.ic_section_capture,
+                labelRes = R.string.project_add_survey_here,
+                onClick = {
+                    menuOpen = false
+                    onAddSurvey()
                 },
             )
             ProjectMenuItem(
@@ -1292,6 +1358,7 @@ private fun ObjectRow(
     val icon = when (ref.kind) {
         ProjectObjectKind.MEASUREMENT_LIST -> R.drawable.ic_section_measurements
         ProjectObjectKind.PLAN -> R.drawable.ic_section_plans
+        ProjectObjectKind.SURVEY -> R.drawable.ic_section_capture
     }
     val nested = style == ProjectTreeStyle.Nested
     val contentStart = if (nested) 12.dp else (12 + depth * 20).dp
@@ -1497,6 +1564,7 @@ private fun iconFor(entry: ProjectTree.Entry): Int = when (entry) {
     is ProjectTree.Entry.ObjectEntry -> when (entry.ref.kind) {
         ProjectObjectKind.MEASUREMENT_LIST -> R.drawable.ic_section_measurements
         ProjectObjectKind.PLAN -> R.drawable.ic_section_plans
+        ProjectObjectKind.SURVEY -> R.drawable.ic_section_capture
     }
 }
 
@@ -1606,16 +1674,29 @@ private fun AddObjectDialog(
     onPick: (ProjectObjectKey) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val listKind = kind == ProjectObjectKind.MEASUREMENT_LIST
+    val titleRes = when (kind) {
+        ProjectObjectKind.MEASUREMENT_LIST -> R.string.project_add_list_title
+        ProjectObjectKind.PLAN -> R.string.project_add_plan_title
+        ProjectObjectKind.SURVEY -> R.string.project_add_survey_title
+    }
+    val createRes = when (kind) {
+        ProjectObjectKind.MEASUREMENT_LIST -> R.string.project_create_new_list
+        ProjectObjectKind.PLAN -> R.string.project_create_new_plan
+        ProjectObjectKind.SURVEY -> R.string.project_create_new_survey
+    }
+    val emptyRes = when (kind) {
+        ProjectObjectKind.MEASUREMENT_LIST -> R.string.project_no_lists
+        ProjectObjectKind.PLAN -> R.string.project_no_plans
+        ProjectObjectKind.SURVEY -> R.string.project_no_surveys
+    }
+    val countPlural = when (kind) {
+        ProjectObjectKind.MEASUREMENT_LIST -> R.plurals.measurements_count
+        ProjectObjectKind.PLAN -> R.plurals.plan_edges_count
+        ProjectObjectKind.SURVEY -> R.plurals.survey_segments_count
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = {
-            Text(
-                stringResource(
-                    if (listKind) R.string.project_add_list_title else R.string.project_add_plan_title,
-                ),
-            )
-        },
+        title = { Text(stringResource(titleRes)) },
         text = {
             Column(
                 modifier = Modifier
@@ -1627,21 +1708,11 @@ private fun AddObjectDialog(
                     onClick = onCreateNew,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(
-                        stringResource(
-                            if (listKind) {
-                                R.string.project_create_new_list
-                            } else {
-                                R.string.project_create_new_plan
-                            },
-                        ),
-                    )
+                    Text(stringResource(createRes))
                 }
                 if (objects.isEmpty()) {
                     Text(
-                        text = stringResource(
-                            if (listKind) R.string.project_no_lists else R.string.project_no_plans,
-                        ),
+                        text = stringResource(emptyRes),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
@@ -1665,11 +1736,7 @@ private fun AddObjectDialog(
                             )
                             Text(
                                 text = pluralStringResource(
-                                    if (listKind) {
-                                        R.plurals.measurements_count
-                                    } else {
-                                        R.plurals.plan_edges_count
-                                    },
+                                    countPlural,
                                     item.count,
                                     item.count,
                                 ),
