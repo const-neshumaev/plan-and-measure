@@ -11,9 +11,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -64,7 +64,7 @@ import com.planmeasure.units.Length
 import com.planmeasure.units.LengthUnit
 import java.math.BigDecimal
 
-/** Editor of one plan: the drawing surface, tool switch, undo, grid toggle and document actions. */
+/** Editor of one plan: the drawing surface, tool switch, undo and the plan menu. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlanEditorScreen(
@@ -297,54 +297,12 @@ fun PlanEditorScreen(
                 actions = {
                     if (calculationMode == null) {
                         IconButton(
-                            onClick = {
-                                commitDimension()
-                                cardOpen = false
-                                calculationsOpen = true
-                            },
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_calculate),
-                                contentDescription = stringResource(R.string.plan_calculations),
-                            )
-                        }
-                        IconButton(
                             onClick = viewModel::undo,
                             enabled = canUndo,
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_undo),
                                 contentDescription = stringResource(R.string.action_undo),
-                            )
-                        }
-                        // Deleting the line itself stays in Edit: in Dimensions mode the card owns
-                        // the delete action, so the same trash must not remove the wall behind it.
-                        if (tool == PlanTool.Edit && selectedEdge != null) {
-                            IconButton(
-                                onClick = {
-                                    selectedEdgeId = null
-                                    cardOpen = false
-                                    viewModel.removeEdge(selectedEdge.id)
-                                },
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_delete),
-                                    contentDescription = stringResource(R.string.plan_delete_edge),
-                                )
-                            }
-                        }
-                        IconToggleButton(
-                            checked = showGrid,
-                            onCheckedChange = { showGrid = it },
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_grid),
-                                contentDescription = stringResource(R.string.plan_grid),
-                                tint = if (showGrid) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
                             )
                         }
                         Box {
@@ -358,9 +316,9 @@ fun PlanEditorScreen(
                                 expanded = menuOpen,
                                 onDismissRequest = { menuOpen = false },
                             ) {
-                                // The fit action lives here because the top bar already has the
-                                // calculation icon and the other tools; a sixth icon would push
-                                // the plan name out of a phone screen.
+                                // Undo is the only action left in the top bar, so every other
+                                // plan action lives here; that keeps the plan name readable on a
+                                // phone screen.
                                 if (!viewport.isFitted) {
                                     DropdownMenuItem(
                                         text = { Text(stringResource(R.string.plan_fit_screen)) },
@@ -376,6 +334,65 @@ fun PlanEditorScreen(
                                         },
                                     )
                                 }
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.plan_calculations)) },
+                                    leadingIcon = {
+                                        Icon(
+                                            painter = painterResource(R.drawable.ic_calculate),
+                                            contentDescription = null,
+                                        )
+                                    },
+                                    onClick = {
+                                        menuOpen = false
+                                        commitDimension()
+                                        cardOpen = false
+                                        calculationsOpen = true
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.plan_grid)) },
+                                    leadingIcon = {
+                                        Icon(
+                                            painter = painterResource(R.drawable.ic_grid),
+                                            contentDescription = null,
+                                        )
+                                    },
+                                    trailingIcon = if (showGrid) {
+                                        {
+                                            Icon(
+                                                painter = painterResource(R.drawable.ic_check),
+                                                contentDescription = null,
+                                            )
+                                        }
+                                    } else {
+                                        null
+                                    },
+                                    onClick = {
+                                        menuOpen = false
+                                        showGrid = !showGrid
+                                    },
+                                )
+                                // Deleting the line itself stays in Edit: in Dimensions mode the
+                                // card owns the delete action, so the same trash must not remove
+                                // the wall behind it.
+                                if (tool == PlanTool.Edit && selectedEdge != null) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.plan_delete_edge)) },
+                                        leadingIcon = {
+                                            Icon(
+                                                painter = painterResource(R.drawable.ic_delete),
+                                                contentDescription = null,
+                                            )
+                                        },
+                                        onClick = {
+                                            menuOpen = false
+                                            selectedEdgeId = null
+                                            cardOpen = false
+                                            viewModel.removeEdge(selectedEdge.id)
+                                        },
+                                    )
+                                }
+                                HorizontalDivider()
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.action_rename)) },
                                     leadingIcon = {
