@@ -51,6 +51,9 @@ class JsonMeasurementListRepository(
         }
     }
 
+    override fun hasDocument(id: String): Boolean =
+        isValidId(id) && store.hasAnyVersion(store.fileFor(id))
+
     override suspend fun create(name: String, unit: LengthUnit): MeasurementList =
         withContext(Dispatchers.IO) {
             mutex.withLock {

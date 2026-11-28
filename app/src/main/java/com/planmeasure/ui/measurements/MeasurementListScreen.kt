@@ -76,6 +76,7 @@ fun MeasurementListScreen(
     viewModel: MeasurementsViewModel,
     labViewModel: LabViewModel,
     onOpenConnect: () -> Unit,
+    onDeleteList: (String) -> Unit,
     onBack: () -> Unit,
 ) {
     val gattState by labViewModel.gattState.collectAsState()
@@ -312,7 +313,7 @@ fun MeasurementListScreen(
                 TextButton(
                     onClick = {
                         showDeleteList = false
-                        viewModel.deleteOpenList()
+                        onDeleteList(list.id)
                     },
                 ) {
                     Text(stringResource(R.string.action_delete))

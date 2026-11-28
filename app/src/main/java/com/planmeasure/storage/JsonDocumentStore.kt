@@ -27,6 +27,9 @@ class JsonDocumentStore(private val directory: File) {
 
     fun fileFor(id: String): File = File(directory, "$id.json")
 
+    /** Whether the document or its backup exists, even if neither can be decoded right now. */
+    fun hasAnyVersion(file: File): Boolean = file.isFile || backupFor(file).isFile
+
     /**
      * Contents of [file] and its backup, in fallback order. Unreadable candidates are skipped,
      * so a caller can decode each text and accept the first one that makes sense.

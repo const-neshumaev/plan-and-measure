@@ -21,6 +21,9 @@ interface PlanRepository {
     /** Returns the full document, or `null` if it is missing or unreadable. */
     suspend fun load(id: String): PlanDocument?
 
+    /** Whether a document or its backup exists for [id], even if it cannot be decoded. */
+    fun hasDocument(id: String): Boolean
+
     suspend fun create(name: String, unit: LengthUnit = LengthUnit.METERS): PlanDocument
 
     /** Writes the document and refreshes the in-memory list. */

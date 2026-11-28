@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import com.planmeasure.R
 import com.planmeasure.plans.PlanDocument
 import com.planmeasure.plans.PlansViewModel
+import com.planmeasure.settings.ObjectScope
 import com.planmeasure.ui.components.EmptyState
 import com.planmeasure.ui.components.ListNameDialog
 import com.planmeasure.ui.components.defaultNameTimestamp
@@ -58,10 +59,17 @@ import java.util.Locale
 fun PlanListsScreen(
     viewModel: PlansViewModel,
     projectNames: Map<String, String> = emptyMap(),
+    objectScope: ObjectScope = ObjectScope.All,
+    onDeletePlan: (String) -> Unit,
     onBack: () -> Unit,
 ) {
     val plans by viewModel.plans.collectAsState()
     val loading by viewModel.loading.collectAsState()
+    val visiblePlans = if (objectScope == ObjectScope.WithoutProject) {
+        plans.filter { it.id !in projectNames }
+    } else {
+        plans
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     val locale = LocalConfiguration.current.locales[0]
     val defaultTimestamp = remember(locale) { defaultNameTimestamp(locale) }
@@ -113,7 +121,7 @@ fun PlanListsScreen(
                 CircularProgressIndicator()
             }
 
-            plans.isEmpty() -> Box(
+            visiblePlans.isEmpty() -> Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
@@ -139,7 +147,7 @@ fun PlanListsScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items(plans, key = { it.id }) { plan ->
+                items(visiblePlans, key = { it.id }) { plan ->
                     PlanRow(
                         plan = plan,
                         projectName = projectNames[plan.id],
@@ -192,7 +200,7 @@ fun PlanListsScreen(
                 TextButton(
                     onClick = {
                         deleting = null
-                        viewModel.deletePlan(plan.id)
+                        onDeletePlan(plan.id)
                     },
                 ) {
                     Text(stringResource(R.string.action_delete))

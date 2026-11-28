@@ -23,6 +23,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.planmeasure.R
 import com.planmeasure.settings.AppLanguage
+import com.planmeasure.settings.ObjectScope
 import com.planmeasure.settings.ProjectTreeStyle
 import com.planmeasure.settings.SettingsViewModel
 import com.planmeasure.settings.ThemeMode
@@ -60,6 +61,17 @@ fun SettingsScreen(
                             onLanguageChanged()
                         }
                     },
+                )
+            }
+        }
+
+        SettingsCard(titleRes = R.string.settings_object_scope) {
+            ObjectScope.entries.forEachIndexed { index, scope ->
+                if (index > 0) HorizontalDivider(Modifier.padding(start = 16.dp))
+                SettingChoiceRow(
+                    label = stringResource(scope.labelRes()),
+                    selected = settings.objectScope == scope,
+                    onClick = { settingsViewModel.setObjectScope(scope) },
                 )
             }
         }
@@ -137,6 +149,12 @@ private fun ThemeMode.labelRes(): Int = when (this) {
 private fun AppLanguage.labelRes(): Int = when (this) {
     AppLanguage.English -> R.string.settings_language_english
     AppLanguage.Russian -> R.string.settings_language_russian
+}
+
+@StringRes
+private fun ObjectScope.labelRes(): Int = when (this) {
+    ObjectScope.All -> R.string.settings_object_scope_all
+    ObjectScope.WithoutProject -> R.string.settings_object_scope_without_project
 }
 
 @StringRes

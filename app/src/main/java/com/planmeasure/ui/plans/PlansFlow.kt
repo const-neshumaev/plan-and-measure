@@ -11,6 +11,7 @@ import com.planmeasure.plans.PlansViewModel
 import com.planmeasure.projects.ProjectObjectKind
 import com.planmeasure.projects.ProjectTree
 import com.planmeasure.projects.ProjectsViewModel
+import com.planmeasure.settings.ObjectScope
 
 /**
  * Navigation inside the Plans section: saved plans, then the editor of the open plan.
@@ -20,6 +21,7 @@ import com.planmeasure.projects.ProjectsViewModel
 @Composable
 fun PlansFlow(
     labViewModel: LabViewModel,
+    objectScope: ObjectScope,
     onExit: () -> Unit,
     onOpenConnect: () -> Unit,
     viewModel: PlansViewModel = viewModel(),
@@ -30,6 +32,11 @@ fun PlansFlow(
     val projectNames = remember(projects) {
         ProjectTree.projectNames(projects, ProjectObjectKind.PLAN)
     }
+    val deletePlan: (String) -> Unit = { id ->
+        viewModel.deletePlan(id) {
+            projectsViewModel.removeReferenceEverywhere(ProjectObjectKind.PLAN, id)
+        }
+    }
 
     BackHandler(enabled = openPlan == null) { onExit() }
 
@@ -38,6 +45,8 @@ fun PlansFlow(
         PlanListsScreen(
             viewModel = viewModel,
             projectNames = projectNames,
+            objectScope = objectScope,
+            onDeletePlan = deletePlan,
             onBack = onExit,
         )
     } else {
@@ -46,6 +55,7 @@ fun PlansFlow(
             viewModel = viewModel,
             labViewModel = labViewModel,
             onOpenConnect = onOpenConnect,
+            onDeletePlan = deletePlan,
             onBack = viewModel::close,
         )
     }

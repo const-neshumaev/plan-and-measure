@@ -73,12 +73,14 @@ fun AppRoot(
 
         HomeSection.Measurements -> MeasurementsFlow(
             labViewModel = viewModel,
+            objectScope = settings.objectScope,
             onExit = { section = null },
             onOpenConnect = { connectOpen = true },
         )
 
         HomeSection.Plans -> PlansFlow(
             labViewModel = viewModel,
+            objectScope = settings.objectScope,
             onExit = { section = null },
             onOpenConnect = { connectOpen = true },
         )

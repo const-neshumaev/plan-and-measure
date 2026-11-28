@@ -70,6 +70,7 @@ fun PlanEditorScreen(
     viewModel: PlansViewModel,
     labViewModel: LabViewModel,
     onOpenConnect: () -> Unit,
+    onDeletePlan: (String) -> Unit,
     onBack: () -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -529,7 +530,7 @@ fun PlanEditorScreen(
                 TextButton(
                     onClick = {
                         showDelete = false
-                        viewModel.deleteOpenPlan()
+                        onDeletePlan(plan.id)
                     },
                 ) {
                     Text(stringResource(R.string.action_delete))

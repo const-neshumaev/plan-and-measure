@@ -11,6 +11,7 @@ import com.planmeasure.measurements.MeasurementsViewModel
 import com.planmeasure.projects.ProjectObjectKind
 import com.planmeasure.projects.ProjectTree
 import com.planmeasure.projects.ProjectsViewModel
+import com.planmeasure.settings.ObjectScope
 
 /**
  * Navigation inside the Measurements section: saved lists, then the editor of the open list.
@@ -21,6 +22,7 @@ import com.planmeasure.projects.ProjectsViewModel
 @Composable
 fun MeasurementsFlow(
     labViewModel: LabViewModel,
+    objectScope: ObjectScope,
     onExit: () -> Unit,
     onOpenConnect: () -> Unit,
     viewModel: MeasurementsViewModel = viewModel(),
@@ -31,6 +33,14 @@ fun MeasurementsFlow(
     val projectNames = remember(projects) {
         ProjectTree.projectNames(projects, ProjectObjectKind.MEASUREMENT_LIST)
     }
+    val deleteList: (String) -> Unit = { id ->
+        viewModel.deleteList(id) {
+            projectsViewModel.removeReferenceEverywhere(
+                ProjectObjectKind.MEASUREMENT_LIST,
+                id,
+            )
+        }
+    }
 
     BackHandler(enabled = openList == null) { onExit() }
 
@@ -39,6 +49,8 @@ fun MeasurementsFlow(
         MeasurementListsScreen(
             viewModel = viewModel,
             projectNames = projectNames,
+            objectScope = objectScope,
+            onDeleteList = deleteList,
             onBack = onExit,
         )
     } else {
@@ -47,6 +59,7 @@ fun MeasurementsFlow(
             viewModel = viewModel,
             labViewModel = labViewModel,
             onOpenConnect = onOpenConnect,
+            onDeleteList = deleteList,
             onBack = viewModel::close,
         )
     }

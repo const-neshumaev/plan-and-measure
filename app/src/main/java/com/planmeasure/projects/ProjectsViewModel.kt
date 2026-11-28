@@ -154,6 +154,47 @@ class ProjectsViewModel(app: Application) : AndroidViewModel(app) {
         commit { project -> ProjectTree.removeObject(project, key) }
     }
 
+    /** Removes [keys] from the open project only; used by the manual cleanup action. */
+    fun removeObjects(keys: Collection<ProjectObjectKey>) {
+        if (keys.isEmpty()) return
+        commit { project -> keys.fold(project) { acc, key -> ProjectTree.removeObject(acc, key) } }
+    }
+
+    /**
+     * Drops a reference to an object that has already been deleted from every project.
+     *
+     * The object document is removed before this runs, so a failure here leaves a hidden stale
+     * reference that the manual cleanup can remove later (ADR 0017). The open project is taken
+     * from memory when `_openProject` is set, so an in-flight edit is not overwritten by a stale
+     * repository copy.
+     */
+    fun removeReferenceEverywhere(kind: ProjectObjectKind, refId: String) {
+        val key = ProjectObjectKey(kind, refId)
+        viewModelScope.launch {
+            persistence.withLock {
+                val open = _openProject.value
+                val repositoryProjects = repository.projects.value
+                val merged = repositoryProjects.map { project ->
+                    if (open != null && project.id == open.id) open else project
+                }.let { projects ->
+                    if (open != null && projects.none { it.id == open.id }) projects + open else projects
+                }
+                val now = System.currentTimeMillis()
+                val changed = merged.mapNotNull { project ->
+                    val removed = ProjectTree.removeObject(project, key)
+                    if (removed == project) null else removed.copy(updatedAt = now)
+                }
+                if (changed.isEmpty()) return@withLock
+
+                runCatching { repository.updateAll(changed) }
+                    .onSuccess {
+                        changed.firstOrNull { it.id == open?.id }?.let { _openProject.value = it }
+                    }
+                    .onFailure { report(R.string.project_error_save) }
+            }
+        }
+    }
+
     /**
      * Attaches an object to the open project or moves it inside the tree.
      *
