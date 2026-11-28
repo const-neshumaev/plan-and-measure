@@ -2,6 +2,7 @@ package com.planmeasure.settings
 
 import java.util.Locale
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SettingsDefaultsTest {
@@ -47,7 +48,12 @@ class SettingsDefaultsTest {
     }
 
     @Test
-    fun sectionsHideProjectObjectsByDefault() {
-        assertEquals(ObjectScope.WithoutProject, AppSettings().objectScope)
+    fun projectTreeImagesStartSmall() {
+        assertEquals(ProjectTreePreview.Small, AppSettings().projectTreePreview)
+    }
+
+    @Test
+    fun hintsAreShownByDefault() {
+        assertTrue(AppSettings().showHints)
     }
 }

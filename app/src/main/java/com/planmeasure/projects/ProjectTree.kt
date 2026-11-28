@@ -246,14 +246,14 @@ object ProjectTree {
     fun projectNameOf(projects: List<ProjectDocument>, key: ProjectObjectKey): String? =
         projects.firstOrNull { project -> project.objects.any { it.key() == key } }?.name
 
-    /** Object id to project name for one kind, used for the badge in the objects' own sections. */
-    fun projectNames(
+    /** Ids of objects of [kind] that belong to a project; the sections hide them. */
+    fun projectObjectIds(
         projects: List<ProjectDocument>,
         kind: ProjectObjectKind,
-    ): Map<String, String> = buildMap {
+    ): Set<String> = buildSet {
         projects.forEach { project ->
             project.objects.forEach { ref ->
-                if (ref.kind == kind) put(ref.refId, project.name)
+                if (ref.kind == kind) add(ref.refId)
             }
         }
     }

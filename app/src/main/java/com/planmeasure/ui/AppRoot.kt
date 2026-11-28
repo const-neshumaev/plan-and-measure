@@ -74,14 +74,13 @@ fun AppRoot(
 
         HomeSection.Measurements -> MeasurementsFlow(
             labViewModel = viewModel,
-            objectScope = settings.objectScope,
             onExit = { section = null },
             onOpenConnect = { connectOpen = true },
         )
 
         HomeSection.Plans -> PlansFlow(
             labViewModel = viewModel,
-            objectScope = settings.objectScope,
+            showHints = settings.showHints,
             onExit = { section = null },
             onOpenConnect = { connectOpen = true },
         )
@@ -89,15 +88,18 @@ fun AppRoot(
         HomeSection.Projects -> ProjectsFlow(
             labViewModel = viewModel,
             treeStyle = settings.projectTreeStyle,
+            treePreview = settings.projectTreePreview,
+            showHints = settings.showHints,
             onExit = { section = null },
             onOpenConnect = { connectOpen = true },
         )
 
         HomeSection.Capture -> SurveyFlow(
             labViewModel = viewModel,
-            objectScope = settings.objectScope,
+            showHints = settings.showHints,
             onExit = { section = null },
             onOpenConnect = { connectOpen = true },
+            onOpenPlans = { section = HomeSection.Plans },
         )
         HomeSection.Settings -> SettingsScreen(
             settingsViewModel = settingsViewModel,

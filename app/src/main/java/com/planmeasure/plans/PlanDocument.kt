@@ -144,3 +144,14 @@ data class PlanDocument(
     val hasDrawing: Boolean
         get() = edgeCount > 0
 }
+
+/**
+ * Drawing content for a new plan, for example one converted from a survey.
+ *
+ * The content has no scale on purpose: a converted sketch keeps its dimension labels but stays an
+ * unscaled drawing until the user enters a dimension in the plan itself (ADR 0023).
+ */
+data class PlanContent(
+    val nodes: List<PlanNode> = emptyList(),
+    val contours: List<PlanContour> = emptyList(),
+)

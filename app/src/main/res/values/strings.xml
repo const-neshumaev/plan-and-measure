@@ -7,11 +7,14 @@
     <string name="action_add">Add</string>
     <string name="action_cancel">Cancel</string>
     <string name="action_close">Close</string>
+    <string name="action_collapse">Collapse</string>
     <string name="action_create">Create</string>
     <string name="action_delete">Delete</string>
     <string name="action_edit">Edit</string>
+    <string name="action_expand">Expand</string>
     <string name="action_more">More</string>
     <string name="action_move">Move</string>
+    <string name="action_open">Open</string>
     <string name="action_rename">Rename</string>
     <string name="action_save">Save</string>
     <string name="action_undo">Undo</string>
@@ -274,6 +277,7 @@
     <string name="survey_name_hint">e.g. Living room</string>
     <string name="survey_default_name">Sketch %1$s</string>
     <string name="survey_rename_title">Rename photo sketch</string>
+    <string name="survey_convert_to_plan">Convert to plan</string>
     <string name="survey_delete_title">Delete photo sketch?</string>
     <string name="survey_delete_text">The photo and the sketch “%1$s” will be deleted permanently.</string>
     <string name="survey_updated">Updated %1$s</string>
@@ -322,12 +326,14 @@
     <string name="settings_language">Language</string>
     <string name="settings_language_english">English</string>
     <string name="settings_language_russian">Русский</string>
-    <string name="settings_object_scope">Objects in sections</string>
-    <string name="settings_object_scope_all">All</string>
-    <string name="settings_object_scope_without_project">Without project</string>
-    <string name="settings_project_tree">Project tree</string>
+    <string name="settings_project_tree">Project tree view</string>
     <string name="settings_project_tree_headers">Group headers</string>
     <string name="settings_project_tree_nested">Nested cards</string>
+    <string name="settings_project_images">Object images in tree</string>
+    <string name="settings_project_images_small">Small</string>
+    <string name="settings_project_images_large">Large</string>
+    <string name="settings_hints">Hints</string>
+    <string name="settings_hints_show">Show hints</string>
 
     <!-- BLE Lab: scan -->
     <string name="lab_title">BLE Lab</string>

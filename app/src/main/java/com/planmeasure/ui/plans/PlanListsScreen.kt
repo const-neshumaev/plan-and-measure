@@ -46,7 +46,6 @@ import androidx.compose.ui.unit.dp
 import com.planmeasure.R
 import com.planmeasure.plans.PlanDocument
 import com.planmeasure.plans.PlansViewModel
-import com.planmeasure.settings.ObjectScope
 import com.planmeasure.ui.components.EmptyState
 import com.planmeasure.ui.components.ListNameDialog
 import com.planmeasure.ui.components.defaultNameTimestamp
@@ -58,18 +57,13 @@ import java.util.Locale
 @Composable
 fun PlanListsScreen(
     viewModel: PlansViewModel,
-    projectNames: Map<String, String> = emptyMap(),
-    objectScope: ObjectScope = ObjectScope.All,
+    projectObjectIds: Set<String>,
     onDeletePlan: (String) -> Unit,
     onBack: () -> Unit,
 ) {
     val plans by viewModel.plans.collectAsState()
     val loading by viewModel.loading.collectAsState()
-    val visiblePlans = if (objectScope == ObjectScope.WithoutProject) {
-        plans.filter { it.id !in projectNames }
-    } else {
-        plans
-    }
+    val visiblePlans = plans.filter { it.id !in projectObjectIds }
     val snackbarHostState = remember { SnackbarHostState() }
     val locale = LocalConfiguration.current.locales[0]
     val defaultTimestamp = remember(locale) { defaultNameTimestamp(locale) }
@@ -150,7 +144,6 @@ fun PlanListsScreen(
                 items(visiblePlans, key = { it.id }) { plan ->
                     PlanRow(
                         plan = plan,
-                        projectName = projectNames[plan.id],
                         locale = locale,
                         onOpen = { viewModel.open(plan.id) },
                         onRename = { renaming = plan },
@@ -218,7 +211,6 @@ fun PlanListsScreen(
 @Composable
 private fun PlanRow(
     plan: PlanDocument,
-    projectName: String?,
     locale: Locale,
     onOpen: () -> Unit,
     onRename: () -> Unit,
@@ -268,13 +260,6 @@ private fun PlanRow(
                     ),
                     style = MaterialTheme.typography.bodySmall,
                 )
-                if (projectName != null) {
-                    Text(
-                        text = stringResource(R.string.project_in_project, projectName),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
             }
             Box {
                 IconButton(onClick = { menuOpen = true }) {
@@ -288,6 +273,19 @@ private fun PlanRow(
                     expanded = menuOpen,
                     onDismissRequest = { menuOpen = false },
                 ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.action_open)) },
+                        leadingIcon = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_visibility),
+                                contentDescription = null,
+                            )
+                        },
+                        onClick = {
+                            menuOpen = false
+                            onOpen()
+                        },
+                    )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.action_rename)) },
                         leadingIcon = {

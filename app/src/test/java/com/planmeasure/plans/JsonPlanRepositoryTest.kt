@@ -1,5 +1,6 @@
 package com.planmeasure.plans
 
+import com.planmeasure.units.LengthUnit
 import java.io.File
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -56,6 +57,28 @@ class JsonPlanRepositoryTest {
         val reopened = repository()
         reopened.reload()
         assertEquals(created, reopened.load(PLAN_ID))
+    }
+
+    @Test
+    fun createStoresProvidedContent() = runBlocking {
+        val repository = repository()
+        repository.reload()
+        val content = PlanContent(
+            nodes = listOf(
+                PlanNode(NODE_A, 1.0, 1.0),
+                PlanNode(NODE_B, 5.0, 1.0),
+            ),
+            contours = listOf(
+                PlanContour(CONTOUR_ID, listOf(PlanEdge(EDGE_ID, NODE_A, NODE_B))),
+            ),
+        )
+
+        val created = repository.create("From survey", LengthUnit.METERS, content)
+
+        assertEquals(content.nodes, created.nodes)
+        assertEquals(content.contours, created.contours)
+        assertNull(created.mmPerUnit)
+        assertEquals(content.contours, repository.plans.value.single().contours)
     }
 
     @Test

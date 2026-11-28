@@ -45,7 +45,9 @@ ADR не нужен для багфиксов, переименований, л�
 | [0016](0016-selectable-project-tree-layout.md) | Выбирать раскладку дерева проекта в настройках | Accepted — значение по умолчанию изменено 0019 | 2026-11-22 |
 | [0017](0017-clean-project-references-on-delete.md) | Чистить ссылки проекта на удалённые объекты | Accepted | 2026-11-28 |
 | [0018](0018-drag-project-tree-rows.md) | Перетаскивать строки дерева проекта с подтверждением | Accepted | 2026-11-28 |
-| [0019](0019-default-nested-cards-and-project-scope.md) | Вложенные карточки и «Без проекта» по умолчанию | Accepted | 2026-11-28 |
+| [0019](0019-default-nested-cards-and-project-scope.md) | Вложенные карточки и «Без проекта» по умолчанию | Superseded by 0024 | 2026-11-28 |
 | [0020](0020-plan-calculations-from-geometry.md) | Считать площади, периметры и длины по геометрии плана | Accepted | 2026-11-28 |
 | [0021](0021-surveys-are-annotated-photos.md) | Делать съёмку аннотированным фото, а не масштабным планом | Accepted | 2026-11-28 |
 | [0022](0022-store-survey-photos-with-document.md) | Хранить фото съёмки рядом с документом | Accepted | 2026-11-28 |
+| [0023](0023-convert-survey-to-plan.md) | Преобразовывать съёмку в план как переносимый набросок | Accepted | 2026-11-28 |
+| [0024](0024-always-hide-project-objects-in-sections.md) | Всегда скрывать объекты проектов в разделах | Accepted | 2026-11-28 |

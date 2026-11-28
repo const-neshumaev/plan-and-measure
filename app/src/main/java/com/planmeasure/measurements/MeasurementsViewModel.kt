@@ -97,8 +97,8 @@ class MeasurementsViewModel(app: Application) : AndroidViewModel(app) {
     /**
      * Creates a list.
      *
-     * [open] is false when the list is created from a project and the user stays in the tree;
-     * [onCreated] receives the id so the caller can attach the new document immediately.
+     * [open] is false when the list is created from a project: the caller attaches and opens it
+     * itself, so the tree stays behind the editor; [onCreated] receives the id to do both.
      */
     fun createList(
         name: String,

@@ -69,8 +69,9 @@ fun SurveyThumbnail(
     photo: SurveyPhoto?,
     viewModel: SurveyViewModel,
     modifier: Modifier = Modifier,
+    maxSidePx: Int = 192,
 ) {
-    val state = rememberSurveyImage(surveyId, photo, viewModel, maxSidePx = 192)
+    val state = rememberSurveyImage(surveyId, photo, viewModel, maxSidePx = maxSidePx)
     Box(
         modifier = modifier
             .clip(MaterialTheme.shapes.medium)

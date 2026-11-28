@@ -181,7 +181,7 @@ class ProjectTreeTest {
     }
 
     @Test
-    fun projectNamesMapsOnlyTheRequestedKind() {
+    fun projectObjectIdsContainOnlyTheRequestedKind() {
         val list = ProjectObjectKey(ProjectObjectKind.MEASUREMENT_LIST, "list")
         val plan = ProjectObjectKey(ProjectObjectKind.PLAN, "plan")
         val projects = listOf(
@@ -205,12 +205,12 @@ class ProjectTreeTest {
         )
 
         assertEquals(
-            mapOf("list" to "First", "list-2" to "Second"),
-            ProjectTree.projectNames(projects, ProjectObjectKind.MEASUREMENT_LIST),
+            setOf("list", "list-2"),
+            ProjectTree.projectObjectIds(projects, ProjectObjectKind.MEASUREMENT_LIST),
         )
         assertEquals(
-            mapOf("plan" to "First"),
-            ProjectTree.projectNames(projects, ProjectObjectKind.PLAN),
+            setOf("plan"),
+            ProjectTree.projectObjectIds(projects, ProjectObjectKind.PLAN),
         )
         assertEquals("First", ProjectTree.projectNameOf(projects, plan))
         assertEquals(
