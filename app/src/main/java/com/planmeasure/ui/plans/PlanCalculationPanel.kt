@@ -47,6 +47,7 @@ internal fun PlanCalculationPanel(
     kind: PlanCalculationKind,
     edgeIds: Set<String>,
     subtractHoles: Boolean,
+    showHints: Boolean,
     onKindChange: (PlanCalculationKind) -> Unit,
     onSubtractHolesChange: (Boolean) -> Unit,
     onReset: () -> Unit,
@@ -108,11 +109,13 @@ internal fun PlanCalculationPanel(
                     plan = plan,
                     contour = contour,
                     subtractHoles = subtractHoles,
+                    showHints = showHints,
                     onSubtractHolesChange = onSubtractHolesChange,
                 )
                 PlanCalculationKind.LENGTH -> LengthContent(
                     plan = plan,
                     length = length,
+                    showHints = showHints,
                 )
             }
             Spacer(Modifier.size(4.dp))
@@ -141,14 +144,17 @@ private fun AreaContent(
     plan: PlanDocument,
     contour: PlanMeasurements.PlanContourMeasurement?,
     subtractHoles: Boolean,
+    showHints: Boolean,
     onSubtractHolesChange: (Boolean) -> Unit,
 ) {
     if (contour == null) {
-        Text(
-            text = stringResource(R.string.plan_calculation_area_hint),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        if (showHints) {
+            Text(
+                text = stringResource(R.string.plan_calculation_area_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         return
     }
 
@@ -232,13 +238,16 @@ private fun AreaContent(
 private fun LengthContent(
     plan: PlanDocument,
     length: PlanMeasurements.PlanLengthMeasurement?,
+    showHints: Boolean,
 ) {
     if (length == null) {
-        Text(
-            text = stringResource(R.string.plan_calculation_length_hint),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        if (showHints) {
+            Text(
+                text = stringResource(R.string.plan_calculation_length_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         return
     }
 

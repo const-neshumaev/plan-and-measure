@@ -11,7 +11,6 @@ import com.planmeasure.plans.PlansViewModel
 import com.planmeasure.projects.ProjectObjectKind
 import com.planmeasure.projects.ProjectTree
 import com.planmeasure.projects.ProjectsViewModel
-import com.planmeasure.settings.ObjectScope
 
 /**
  * Navigation inside the Plans section: saved plans, then the editor of the open plan.
@@ -21,7 +20,7 @@ import com.planmeasure.settings.ObjectScope
 @Composable
 fun PlansFlow(
     labViewModel: LabViewModel,
-    objectScope: ObjectScope,
+    showHints: Boolean,
     onExit: () -> Unit,
     onOpenConnect: () -> Unit,
     viewModel: PlansViewModel = viewModel(),
@@ -29,8 +28,8 @@ fun PlansFlow(
 ) {
     val openPlan by viewModel.openPlan.collectAsState()
     val projects by projectsViewModel.projects.collectAsState()
-    val projectNames = remember(projects) {
-        ProjectTree.projectNames(projects, ProjectObjectKind.PLAN)
+    val projectObjectIds = remember(projects) {
+        ProjectTree.projectObjectIds(projects, ProjectObjectKind.PLAN)
     }
     val deletePlan: (String) -> Unit = { id ->
         viewModel.deletePlan(id) {
@@ -44,8 +43,7 @@ fun PlansFlow(
     if (plan == null) {
         PlanListsScreen(
             viewModel = viewModel,
-            projectNames = projectNames,
-            objectScope = objectScope,
+            projectObjectIds = projectObjectIds,
             onDeletePlan = deletePlan,
             onBack = onExit,
         )
@@ -54,6 +52,7 @@ fun PlansFlow(
             plan = plan,
             viewModel = viewModel,
             labViewModel = labViewModel,
+            showHints = showHints,
             onOpenConnect = onOpenConnect,
             onDeletePlan = deletePlan,
             onBack = viewModel::close,

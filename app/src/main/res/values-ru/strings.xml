@@ -7,11 +7,14 @@
     <string name="action_add">Добавить</string>
     <string name="action_cancel">Отмена</string>
     <string name="action_close">Закрыть</string>
+    <string name="action_collapse">Свернуть</string>
     <string name="action_create">Создать</string>
     <string name="action_delete">Удалить</string>
     <string name="action_edit">Изменить</string>
+    <string name="action_expand">Развернуть</string>
     <string name="action_more">Ещё</string>
     <string name="action_move">Переместить</string>
+    <string name="action_open">Открыть</string>
     <string name="action_rename">Переименовать</string>
     <string name="action_save">Сохранить</string>
     <string name="action_undo">Отменить</string>
@@ -289,7 +292,8 @@
     <string name="survey_name">Название съёмки</string>
     <string name="survey_name_hint">напр. Гостиная</string>
     <string name="survey_default_name">Съёмка %1$s</string>
-    <string name="survey_rename_title">Переименовать съёмку</string>
+    <string name="survey_rename_title">Переименовать фотосъёмку</string>
+    <string name="survey_convert_to_plan">Преобразовать в план</string>
     <string name="survey_delete_title">Удалить съёмку?</string>
     <string name="survey_delete_text">Фото и набросок «%1$s» будут удалены безвозвратно.</string>
     <string name="survey_updated">Обновлено %1$s</string>
@@ -340,12 +344,14 @@
     <string name="settings_language">Язык</string>
     <string name="settings_language_english">English</string>
     <string name="settings_language_russian">Русский</string>
-    <string name="settings_object_scope">Объекты в разделах</string>
-    <string name="settings_object_scope_all">Все</string>
-    <string name="settings_object_scope_without_project">Без проекта</string>
-    <string name="settings_project_tree">Дерево проектов</string>
+    <string name="settings_project_tree">Вид дерева проекта</string>
     <string name="settings_project_tree_headers">Заголовки групп</string>
     <string name="settings_project_tree_nested">Вложенные карточки</string>
+    <string name="settings_project_images">Картинки объектов в дереве</string>
+    <string name="settings_project_images_small">Маленькие</string>
+    <string name="settings_project_images_large">Крупные</string>
+    <string name="settings_hints">Подсказки</string>
+    <string name="settings_hints_show">Показывать подсказки</string>
 
     <!-- BLE Lab: scan -->
     <string name="lab_title">BLE-лаборатория</string>

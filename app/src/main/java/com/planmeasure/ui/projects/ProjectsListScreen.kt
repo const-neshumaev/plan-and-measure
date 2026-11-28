@@ -284,6 +284,19 @@ private fun ProjectRow(
                     onDismissRequest = { menuOpen = false },
                 ) {
                     DropdownMenuItem(
+                        text = { Text(stringResource(R.string.action_open)) },
+                        leadingIcon = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_visibility),
+                                contentDescription = null,
+                            )
+                        },
+                        onClick = {
+                            menuOpen = false
+                            onOpen()
+                        },
+                    )
+                    DropdownMenuItem(
                         text = { Text(stringResource(R.string.action_rename)) },
                         leadingIcon = {
                             Icon(

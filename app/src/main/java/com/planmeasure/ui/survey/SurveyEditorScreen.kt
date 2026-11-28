@@ -47,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -71,6 +72,7 @@ import com.planmeasure.survey.SurveyViewModel
 import com.planmeasure.ui.components.ConnectBanner
 import com.planmeasure.ui.components.ListNameDialog
 import com.planmeasure.ui.components.UnitBar
+import com.planmeasure.ui.components.defaultNameTimestamp
 import com.planmeasure.units.Length
 import com.planmeasure.units.LengthUnit
 
@@ -81,8 +83,10 @@ fun SurveyEditorScreen(
     survey: SurveyDocument,
     viewModel: SurveyViewModel,
     labViewModel: LabViewModel,
+    showHints: Boolean,
     onOpenConnect: () -> Unit,
     onDeleteSurvey: (String) -> Unit,
+    onConvertToPlan: (SurveyDocument, String) -> Unit,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -90,6 +94,11 @@ fun SurveyEditorScreen(
     val canUndo by viewModel.canUndo.collectAsState()
     val gattState by labViewModel.gattState.collectAsState()
     val focusManager = LocalFocusManager.current
+    val locale = LocalConfiguration.current.locales[0]
+    val defaultPlanName = stringResource(
+        R.string.plan_default_name,
+        remember(locale) { defaultNameTimestamp(locale) },
+    )
 
     var tool by rememberSaveable { mutableStateOf(SurveyTool.Draw) }
     var selectedSegmentId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -102,6 +111,7 @@ fun SurveyEditorScreen(
     }
     var menuOpen by remember { mutableStateOf(false) }
     var showRename by rememberSaveable { mutableStateOf(false) }
+    var showConvert by rememberSaveable { mutableStateOf(false) }
     var showClear by rememberSaveable { mutableStateOf(false) }
     var showDelete by rememberSaveable { mutableStateOf(false) }
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
@@ -359,6 +369,23 @@ fun SurveyEditorScreen(
                                 )
                             }
                             HorizontalDivider()
+                            if (survey.hasSketch) {
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(stringResource(R.string.survey_convert_to_plan))
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            painter = painterResource(R.drawable.ic_section_plans),
+                                            contentDescription = null,
+                                        )
+                                    },
+                                    onClick = {
+                                        menuOpen = false
+                                        showConvert = true
+                                    },
+                                )
+                            }
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.action_rename)) },
                                 leadingIcon = {
@@ -462,27 +489,29 @@ fun SurveyEditorScreen(
                             onSelectSegment = selectSegment,
                             modifier = Modifier.fillMaxSize(),
                         )
-                        if (!survey.hasSketch) {
-                            SurveyHint(
-                                text = stringResource(R.string.survey_draw_hint),
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .padding(8.dp),
-                            )
-                        } else if (tool == SurveyTool.Edit) {
-                            SurveyHint(
-                                text = stringResource(R.string.survey_edit_hint),
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .padding(8.dp),
-                            )
-                        } else if (tool == SurveyTool.Dimensions && selectedSegment == null) {
-                            SurveyHint(
-                                text = stringResource(R.string.survey_dimension_hint),
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .padding(8.dp),
-                            )
+                        if (showHints) {
+                            if (!survey.hasSketch) {
+                                SurveyHint(
+                                    text = stringResource(R.string.survey_draw_hint),
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .padding(8.dp),
+                                )
+                            } else if (tool == SurveyTool.Edit) {
+                                SurveyHint(
+                                    text = stringResource(R.string.survey_edit_hint),
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .padding(8.dp),
+                                )
+                            } else if (tool == SurveyTool.Dimensions && selectedSegment == null) {
+                                SurveyHint(
+                                    text = stringResource(R.string.survey_dimension_hint),
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .padding(8.dp),
+                                )
+                            }
                         }
                         if (
                             tool == SurveyTool.Dimensions &&
@@ -567,6 +596,21 @@ fun SurveyEditorScreen(
                 viewModel.renameOpenSurvey(name)
             },
             onDismiss = { showRename = false },
+        )
+    }
+
+    if (showConvert) {
+        ListNameDialog(
+            title = stringResource(R.string.survey_convert_to_plan),
+            labelRes = R.string.plan_name,
+            hintRes = R.string.plan_name_hint,
+            initialName = defaultPlanName,
+            confirmLabel = stringResource(R.string.action_create),
+            onConfirm = { name ->
+                showConvert = false
+                onConvertToPlan(survey, name)
+            },
+            onDismiss = { showConvert = false },
         )
     }
 

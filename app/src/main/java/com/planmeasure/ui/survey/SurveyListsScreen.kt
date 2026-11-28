@@ -44,7 +44,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.planmeasure.R
-import com.planmeasure.settings.ObjectScope
 import com.planmeasure.survey.SurveyDocument
 import com.planmeasure.survey.SurveyViewModel
 import com.planmeasure.ui.components.EmptyState
@@ -58,26 +57,24 @@ import java.util.Locale
 @Composable
 fun SurveyListsScreen(
     viewModel: SurveyViewModel,
-    projectNames: Map<String, String> = emptyMap(),
-    objectScope: ObjectScope = ObjectScope.All,
+    projectObjectIds: Set<String>,
     onDeleteSurvey: (String) -> Unit,
+    onConvertToPlan: (SurveyDocument, String) -> Unit,
     onBack: () -> Unit,
 ) {
     val surveys by viewModel.surveys.collectAsState()
     val loading by viewModel.loading.collectAsState()
-    val visibleSurveys = if (objectScope == ObjectScope.WithoutProject) {
-        surveys.filter { it.id !in projectNames }
-    } else {
-        surveys
-    }
+    val visibleSurveys = surveys.filter { it.id !in projectObjectIds }
     val snackbarHostState = remember { SnackbarHostState() }
     val locale = LocalConfiguration.current.locales[0]
     val defaultTimestamp = remember(locale) { defaultNameTimestamp(locale) }
     val defaultName = stringResource(R.string.survey_default_name, defaultTimestamp)
+    val defaultPlanName = stringResource(R.string.plan_default_name, defaultTimestamp)
 
     var showCreate by rememberSaveable { mutableStateOf(false) }
     var renaming by remember { mutableStateOf<SurveyDocument?>(null) }
     var deleting by remember { mutableStateOf<SurveyDocument?>(null) }
+    var converting by remember { mutableStateOf<SurveyDocument?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.messages.collect { snackbarHostState.showSnackbar(it) }
@@ -150,11 +147,11 @@ fun SurveyListsScreen(
                 items(visibleSurveys, key = { it.id }) { survey ->
                     SurveyRow(
                         survey = survey,
-                        projectName = projectNames[survey.id],
                         viewModel = viewModel,
                         locale = locale,
                         onOpen = { viewModel.open(survey.id) },
                         onRename = { renaming = survey },
+                        onConvert = { converting = survey },
                         onDelete = { deleting = survey },
                     )
                 }
@@ -192,6 +189,21 @@ fun SurveyListsScreen(
         )
     }
 
+    converting?.let { survey ->
+        ListNameDialog(
+            title = stringResource(R.string.survey_convert_to_plan),
+            labelRes = R.string.plan_name,
+            hintRes = R.string.plan_name_hint,
+            initialName = defaultPlanName,
+            confirmLabel = stringResource(R.string.action_create),
+            onConfirm = { name ->
+                converting = null
+                onConvertToPlan(survey, name)
+            },
+            onDismiss = { converting = null },
+        )
+    }
+
     deleting?.let { survey ->
         AlertDialog(
             onDismissRequest = { deleting = null },
@@ -219,11 +231,11 @@ fun SurveyListsScreen(
 @Composable
 private fun SurveyRow(
     survey: SurveyDocument,
-    projectName: String?,
     viewModel: SurveyViewModel,
     locale: Locale,
     onOpen: () -> Unit,
     onRename: () -> Unit,
+    onConvert: () -> Unit,
     onDelete: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
@@ -272,13 +284,6 @@ private fun SurveyRow(
                     ),
                     style = MaterialTheme.typography.bodySmall,
                 )
-                if (projectName != null) {
-                    Text(
-                        text = stringResource(R.string.project_in_project, projectName),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
             }
             Box {
                 IconButton(onClick = { menuOpen = true }) {
@@ -293,6 +298,19 @@ private fun SurveyRow(
                     onDismissRequest = { menuOpen = false },
                 ) {
                     DropdownMenuItem(
+                        text = { Text(stringResource(R.string.action_open)) },
+                        leadingIcon = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_visibility),
+                                contentDescription = null,
+                            )
+                        },
+                        onClick = {
+                            menuOpen = false
+                            onOpen()
+                        },
+                    )
+                    DropdownMenuItem(
                         text = { Text(stringResource(R.string.action_rename)) },
                         leadingIcon = {
                             Icon(
@@ -305,6 +323,21 @@ private fun SurveyRow(
                             onRename()
                         },
                     )
+                    if (survey.hasSketch) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.survey_convert_to_plan)) },
+                            leadingIcon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_section_plans),
+                                    contentDescription = null,
+                                )
+                            },
+                            onClick = {
+                                menuOpen = false
+                                onConvert()
+                            },
+                        )
+                    }
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.action_delete)) },
                         leadingIcon = {

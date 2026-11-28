@@ -7,10 +7,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.planmeasure.LabViewModel
+import com.planmeasure.plans.PlansViewModel
 import com.planmeasure.projects.ProjectObjectKind
 import com.planmeasure.projects.ProjectTree
 import com.planmeasure.projects.ProjectsViewModel
-import com.planmeasure.settings.ObjectScope
+import com.planmeasure.survey.SurveyDocument
+import com.planmeasure.survey.SurveyToPlan
 import com.planmeasure.survey.SurveyViewModel
 
 /**
@@ -21,20 +23,36 @@ import com.planmeasure.survey.SurveyViewModel
 @Composable
 fun SurveyFlow(
     labViewModel: LabViewModel,
-    objectScope: ObjectScope,
+    showHints: Boolean,
     onExit: () -> Unit,
     onOpenConnect: () -> Unit,
+    onOpenPlans: () -> Unit,
     viewModel: SurveyViewModel = viewModel(),
     projectsViewModel: ProjectsViewModel = viewModel(),
+    plansViewModel: PlansViewModel = viewModel(),
 ) {
     val openSurvey by viewModel.openSurvey.collectAsState()
     val projects by projectsViewModel.projects.collectAsState()
-    val projectNames = remember(projects) {
-        ProjectTree.projectNames(projects, ProjectObjectKind.SURVEY)
+    val projectObjectIds = remember(projects) {
+        ProjectTree.projectObjectIds(projects, ProjectObjectKind.SURVEY)
     }
     val deleteSurvey: (String) -> Unit = { id ->
         viewModel.deleteSurvey(id) {
             projectsViewModel.removeReferenceEverywhere(ProjectObjectKind.SURVEY, id)
+        }
+    }
+
+    // A plan made from a survey is a new independent object: the survey section does not own the
+    // project tree, so the plan is not attached to a project here (ADR 0023).
+    val convertSurvey: (SurveyDocument, String) -> Unit = { survey, name ->
+        val content = SurveyToPlan.convert(survey)
+        if (content != null) {
+            plansViewModel.createPlan(
+                name = name,
+                unit = survey.unit,
+                content = content,
+                onCreated = { onOpenPlans() },
+            )
         }
     }
 
@@ -44,9 +62,9 @@ fun SurveyFlow(
     if (survey == null) {
         SurveyListsScreen(
             viewModel = viewModel,
-            projectNames = projectNames,
-            objectScope = objectScope,
+            projectObjectIds = projectObjectIds,
             onDeleteSurvey = deleteSurvey,
+            onConvertToPlan = convertSurvey,
             onBack = onExit,
         )
     } else {
@@ -54,8 +72,10 @@ fun SurveyFlow(
             survey = survey,
             viewModel = viewModel,
             labViewModel = labViewModel,
+            showHints = showHints,
             onOpenConnect = onOpenConnect,
             onDeleteSurvey = deleteSurvey,
+            onConvertToPlan = convertSurvey,
             onBack = viewModel::close,
         )
     }

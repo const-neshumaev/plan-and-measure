@@ -9,9 +9,9 @@ import android.content.res.Configuration
  * On the first launch the theme and language are mirrored from the system (dark mode and a
  * supported language, with English as the fallback) and stored, so later system changes do not
  * override the user's explicit choice. The tree layout is a taste preference and starts with
- * [ProjectTreeStyle.Nested]; sections hide objects that belong to projects by default
- * ([ObjectScope.WithoutProject]). Stored values that are no longer valid are treated as missing:
- * this also migrates the legacy "System" preference.
+ * [ProjectTreeStyle.Nested]; tree previews start small ([ProjectTreePreview.Small]) and the
+ * editors show hints. Sections always hide objects that belong to projects. Stored values that
+ * are no longer valid are treated as missing: this also migrates the legacy "System" preference.
  */
 class SettingsStorage(context: Context) {
 
@@ -22,21 +22,24 @@ class SettingsStorage(context: Context) {
         val storedTheme = readEnumOrNull<ThemeMode>(KEY_THEME_MODE)
         val storedLanguage = readEnumOrNull<AppLanguage>(KEY_LANGUAGE)
         val storedTreeStyle = readEnumOrNull<ProjectTreeStyle>(KEY_PROJECT_TREE_STYLE)
-        val storedObjectScope = readEnumOrNull<ObjectScope>(KEY_OBJECT_SCOPE)
+        val storedTreePreview = readEnumOrNull<ProjectTreePreview>(KEY_PROJECT_TREE_PREVIEW)
 
         val themeMode = storedTheme ?: detectThemeMode()
         val language = storedLanguage ?: detectLanguage()
         val treeStyle = storedTreeStyle ?: ProjectTreeStyle.Nested
-        val objectScope = storedObjectScope ?: ObjectScope.WithoutProject
+        val treePreview = storedTreePreview ?: ProjectTreePreview.Small
+        val showHints = prefs.getBoolean(KEY_SHOW_HINTS, true)
         if (storedTheme == null) saveThemeMode(themeMode)
         if (storedLanguage == null) saveLanguage(language)
         if (storedTreeStyle == null) saveProjectTreeStyle(treeStyle)
-        if (storedObjectScope == null) saveObjectScope(objectScope)
+        if (storedTreePreview == null) saveProjectTreePreview(treePreview)
+        if (!prefs.contains(KEY_SHOW_HINTS)) saveShowHints(showHints)
         return AppSettings(
             themeMode = themeMode,
             language = language,
             projectTreeStyle = treeStyle,
-            objectScope = objectScope,
+            projectTreePreview = treePreview,
+            showHints = showHints,
         )
     }
 
@@ -52,8 +55,12 @@ class SettingsStorage(context: Context) {
         prefs.edit().putString(KEY_PROJECT_TREE_STYLE, style.name).apply()
     }
 
-    fun saveObjectScope(scope: ObjectScope) {
-        prefs.edit().putString(KEY_OBJECT_SCOPE, scope.name).apply()
+    fun saveProjectTreePreview(preview: ProjectTreePreview) {
+        prefs.edit().putString(KEY_PROJECT_TREE_PREVIEW, preview.name).apply()
+    }
+
+    fun saveShowHints(show: Boolean) {
+        prefs.edit().putBoolean(KEY_SHOW_HINTS, show).apply()
     }
 
     private fun detectThemeMode(): ThemeMode {
@@ -75,6 +82,7 @@ class SettingsStorage(context: Context) {
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_LANGUAGE = "language"
         const val KEY_PROJECT_TREE_STYLE = "project_tree_style"
-        const val KEY_OBJECT_SCOPE = "object_scope"
+        const val KEY_PROJECT_TREE_PREVIEW = "project_tree_preview"
+        const val KEY_SHOW_HINTS = "show_hints"
     }
 }

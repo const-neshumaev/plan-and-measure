@@ -71,6 +71,7 @@ fun PlanEditorScreen(
     plan: PlanDocument,
     viewModel: PlansViewModel,
     labViewModel: LabViewModel,
+    showHints: Boolean,
     onOpenConnect: () -> Unit,
     onDeletePlan: (String) -> Unit,
     onBack: () -> Unit,
@@ -523,7 +524,7 @@ fun PlanEditorScreen(
                         onClose = ::closeCard,
                     )
                 }
-                if (calculationMode == null && !plan.hasDrawing) {
+                if (showHints && calculationMode == null && !plan.hasDrawing) {
                     Text(
                         text = stringResource(R.string.plan_draw_hint),
                         style = MaterialTheme.typography.bodyMedium,
@@ -536,7 +537,7 @@ fun PlanEditorScreen(
                 }
                 // The hint floats over the sheet on purpose: giving it its own row would change
                 // the canvas height when the tool changes, and the fitted sheet would jump.
-                if (calculationMode == null && tool == PlanTool.Edit && plan.hasDrawing) {
+                if (showHints && calculationMode == null && tool == PlanTool.Edit && plan.hasDrawing) {
                     Text(
                         text = stringResource(R.string.plan_edit_hint),
                         style = MaterialTheme.typography.bodySmall,
@@ -553,6 +554,7 @@ fun PlanEditorScreen(
                     )
                 }
                 if (
+                    showHints &&
                     calculationMode == null &&
                     tool == PlanTool.Dimensions &&
                     plan.hasDrawing &&
@@ -581,6 +583,7 @@ fun PlanEditorScreen(
                     kind = activeCalculation,
                     edgeIds = calculationEdgeIds,
                     subtractHoles = subtractHoles,
+                    showHints = showHints,
                     onKindChange = { newKind ->
                         if (newKind != activeCalculation) {
                             calculationMode = newKind

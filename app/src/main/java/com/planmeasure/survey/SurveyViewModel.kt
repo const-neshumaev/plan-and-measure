@@ -92,6 +92,12 @@ class SurveyViewModel(app: Application) : AndroidViewModel(app) {
         _openSurvey.value = null
     }
 
+    /**
+     * Creates a survey.
+     *
+     * [open] is false when the survey is created from a project: the caller attaches and opens it
+     * itself, so the tree stays behind the editor; [onCreated] receives the id to do both.
+     */
     fun createSurvey(
         name: String,
         open: Boolean = true,

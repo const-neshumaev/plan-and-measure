@@ -24,7 +24,11 @@ interface PlanRepository {
     /** Whether a document or its backup exists for [id], even if it cannot be decoded. */
     fun hasDocument(id: String): Boolean
 
-    suspend fun create(name: String, unit: LengthUnit = LengthUnit.METERS): PlanDocument
+    suspend fun create(
+        name: String,
+        unit: LengthUnit = LengthUnit.METERS,
+        content: PlanContent = PlanContent(),
+    ): PlanDocument
 
     /** Writes the document and refreshes the in-memory list. */
     suspend fun update(plan: PlanDocument)

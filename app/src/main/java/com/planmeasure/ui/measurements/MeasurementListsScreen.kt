@@ -46,7 +46,6 @@ import androidx.compose.ui.unit.dp
 import com.planmeasure.R
 import com.planmeasure.measurements.MeasurementListSummary
 import com.planmeasure.measurements.MeasurementsViewModel
-import com.planmeasure.settings.ObjectScope
 import com.planmeasure.ui.components.EmptyState
 import com.planmeasure.ui.components.ListNameDialog
 import com.planmeasure.ui.components.defaultNameTimestamp
@@ -58,18 +57,13 @@ import java.util.Locale
 @Composable
 fun MeasurementListsScreen(
     viewModel: MeasurementsViewModel,
-    projectNames: Map<String, String> = emptyMap(),
-    objectScope: ObjectScope = ObjectScope.All,
+    projectObjectIds: Set<String>,
     onDeleteList: (String) -> Unit,
     onBack: () -> Unit,
 ) {
     val lists by viewModel.lists.collectAsState()
     val loading by viewModel.loading.collectAsState()
-    val visibleLists = if (objectScope == ObjectScope.WithoutProject) {
-        lists.filter { it.id !in projectNames }
-    } else {
-        lists
-    }
+    val visibleLists = lists.filter { it.id !in projectObjectIds }
     val snackbarHostState = remember { SnackbarHostState() }
     val locale = LocalConfiguration.current.locales[0]
     val defaultTimestamp = remember(locale) { defaultNameTimestamp(locale) }
@@ -150,7 +144,6 @@ fun MeasurementListsScreen(
                 items(visibleLists, key = { it.id }) { summary ->
                     MeasurementListRow(
                         summary = summary,
-                        projectName = projectNames[summary.id],
                         locale = locale,
                         onOpen = { viewModel.open(summary.id) },
                         onRename = { renaming = summary },
@@ -220,7 +213,6 @@ fun MeasurementListsScreen(
 @Composable
 private fun MeasurementListRow(
     summary: MeasurementListSummary,
-    projectName: String?,
     locale: Locale,
     onOpen: () -> Unit,
     onRename: () -> Unit,
@@ -265,13 +257,6 @@ private fun MeasurementListRow(
                     ),
                     style = MaterialTheme.typography.bodySmall,
                 )
-                if (projectName != null) {
-                    Text(
-                        text = stringResource(R.string.project_in_project, projectName),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
             }
             Box {
                 IconButton(onClick = { menuOpen = true }) {
@@ -285,6 +270,19 @@ private fun MeasurementListRow(
                     expanded = menuOpen,
                     onDismissRequest = { menuOpen = false },
                 ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.action_open)) },
+                        leadingIcon = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_visibility),
+                                contentDescription = null,
+                            )
+                        },
+                        onClick = {
+                            menuOpen = false
+                            onOpen()
+                        },
+                    )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.action_rename)) },
                         leadingIcon = {

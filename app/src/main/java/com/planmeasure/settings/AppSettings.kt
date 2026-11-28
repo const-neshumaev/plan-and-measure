@@ -19,18 +19,17 @@ enum class ProjectTreeStyle {
     Nested,
 }
 
-/** Which saved objects the Measurements and Plans sections list. Defaults to [WithoutProject]. */
-enum class ObjectScope {
-    /** Every object, including ones that belong to a project. */
-    All,
-
-    /** Only objects that no project refers to. */
-    WithoutProject,
+/** Size of the plan and survey previews on project tree rows. Defaults to [Small]. */
+enum class ProjectTreePreview {
+    Small,
+    Large,
 }
 
 data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.Light,
     val language: AppLanguage = AppLanguage.English,
     val projectTreeStyle: ProjectTreeStyle = ProjectTreeStyle.Nested,
-    val objectScope: ObjectScope = ObjectScope.WithoutProject,
+    val projectTreePreview: ProjectTreePreview = ProjectTreePreview.Small,
+    /** Whether the editors show instructional hints over the drawing. */
+    val showHints: Boolean = true,
 )

@@ -96,20 +96,24 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * Creates a plan.
+     * Creates a plan, or opens the new document when [open] is true.
      *
-     * [open] is false when the plan is created from a project and the user stays in the tree;
-     * [onCreated] receives the id so the caller can attach the new document immediately.
+     * [unit] defaults to the last unit the user picked; [content] carries a drawing, for example
+     * one converted from a survey. [open] is false when the plan is created from a project: the
+     * caller attaches and opens it itself, so the tree stays behind the editor; [onCreated]
+     * receives the id to do both.
      */
     fun createPlan(
         name: String,
+        unit: LengthUnit? = null,
+        content: PlanContent = PlanContent(),
         open: Boolean = true,
         onCreated: (String) -> Unit = {},
     ) {
         if (name.isBlank()) return
         viewModelScope.launch {
             val created = persistence.withLock {
-                runCatching { repository.create(name, lastUnit.load()) }
+                runCatching { repository.create(name, unit ?: lastUnit.load(), content) }
                     .onSuccess { created ->
                         if (open) {
                             resetUndo()

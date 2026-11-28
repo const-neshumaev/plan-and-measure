@@ -31,9 +31,15 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         _settings.update { it.copy(projectTreeStyle = style) }
     }
 
-    fun setObjectScope(scope: ObjectScope) {
-        if (_settings.value.objectScope == scope) return
-        storage.saveObjectScope(scope)
-        _settings.update { it.copy(objectScope = scope) }
+    fun setProjectTreePreview(preview: ProjectTreePreview) {
+        if (_settings.value.projectTreePreview == preview) return
+        storage.saveProjectTreePreview(preview)
+        _settings.update { it.copy(projectTreePreview = preview) }
+    }
+
+    fun setShowHints(show: Boolean) {
+        if (_settings.value.showHints == show) return
+        storage.saveShowHints(show)
+        _settings.update { it.copy(showHints = show) }
     }
 }

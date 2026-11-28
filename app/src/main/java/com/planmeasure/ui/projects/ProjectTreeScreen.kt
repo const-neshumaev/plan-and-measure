@@ -91,12 +91,15 @@ import com.planmeasure.projects.ProjectObjectRef
 import com.planmeasure.projects.ProjectTree
 import com.planmeasure.projects.ProjectsViewModel
 import com.planmeasure.projects.key
+import com.planmeasure.settings.ProjectTreePreview
 import com.planmeasure.settings.ProjectTreeStyle
 import com.planmeasure.survey.SurveyDocument
 import com.planmeasure.survey.SurveyViewModel
 import com.planmeasure.ui.components.EmptyState
 import com.planmeasure.ui.components.ListNameDialog
 import com.planmeasure.ui.components.defaultNameTimestamp
+import com.planmeasure.ui.plans.PlanThumbnail
+import com.planmeasure.ui.survey.SurveyThumbnail
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
@@ -110,11 +113,13 @@ fun ProjectTreeScreen(
     plans: List<PlanDocument>,
     surveys: List<SurveyDocument>,
     treeStyle: ProjectTreeStyle,
+    treePreview: ProjectTreePreview,
     viewModel: ProjectsViewModel,
     measurementsViewModel: MeasurementsViewModel,
     plansViewModel: PlansViewModel,
     surveysViewModel: SurveyViewModel,
     onDeleteObject: (ProjectObjectRef) -> Unit,
+    onConvertSurvey: (SurveyDocument, String) -> Unit,
     onBack: () -> Unit,
     onOpenObject: (ProjectObjectRef) -> Unit,
 ) {
@@ -125,6 +130,14 @@ fun ProjectTreeScreen(
     val defaultListName = stringResource(R.string.measurement_list_default_name, defaultTimestamp)
     val defaultPlanName = stringResource(R.string.plan_default_name, defaultTimestamp)
     val defaultSurveyName = stringResource(R.string.survey_default_name, defaultTimestamp)
+    val thumbnailSize = when (treePreview) {
+        ProjectTreePreview.Small -> TreeThumbnailSmall
+        ProjectTreePreview.Large -> TreeThumbnailLarge
+    }
+    val thumbnailDecodePx = when (treePreview) {
+        ProjectTreePreview.Small -> TreeThumbnailDecodeSmall
+        ProjectTreePreview.Large -> TreeThumbnailDecodeLarge
+    }
 
     val collapsedSaver = remember {
         listSaver<Set<String>, String>(
@@ -146,6 +159,8 @@ fun ProjectTreeScreen(
     var deletingFolder by remember { mutableStateOf<ProjectFolder?>(null) }
     var movingFolder by remember { mutableStateOf<ProjectFolder?>(null) }
     var movingObject by remember { mutableStateOf<ProjectObjectRef?>(null) }
+    var renamingObject by remember { mutableStateOf<ProjectObjectRef?>(null) }
+    var convertingSurvey by remember { mutableStateOf<SurveyDocument?>(null) }
     var deletingObject by remember { mutableStateOf<ProjectObjectRef?>(null) }
     var showPruneMissing by rememberSaveable { mutableStateOf(false) }
     var addObjectKind by rememberSaveable { mutableStateOf<String?>(null) }
@@ -682,6 +697,11 @@ fun ProjectTreeScreen(
                                     ref = ref,
                                     name = name,
                                     meta = meta,
+                                    plan = planById[ref.refId],
+                                    survey = surveyById[ref.refId],
+                                    surveyViewModel = surveysViewModel,
+                                    thumbnailSize = thumbnailSize,
+                                    thumbnailDecodePx = thumbnailDecodePx,
                                     depth = entry.depth,
                                     style = treeStyle,
                                     topGap = topGap,
@@ -692,6 +712,8 @@ fun ProjectTreeScreen(
                                         previous is ProjectTree.Entry.ObjectEntry &&
                                         previous.ref.folderId == ref.folderId,
                                     onOpen = { if (!clicksSuppressed()) onOpenObject(ref) },
+                                    onRename = { renamingObject = ref },
+                                    onConvert = { convertingSurvey = surveyById[ref.refId] },
                                     onMove = { movingObject = ref },
                                     onRemove = {
                                         viewModel.removeObject(ref.kind, ref.refId)
@@ -859,6 +881,57 @@ fun ProjectTreeScreen(
                     Text(stringResource(R.string.action_cancel))
                 }
             },
+        )
+    }
+
+    renamingObject?.let { ref ->
+        val titleRes = when (ref.kind) {
+            ProjectObjectKind.MEASUREMENT_LIST -> R.string.measurement_list_rename_title
+            ProjectObjectKind.PLAN -> R.string.plan_rename_title
+            ProjectObjectKind.SURVEY -> R.string.survey_rename_title
+        }
+        val nameRes = when (ref.kind) {
+            ProjectObjectKind.MEASUREMENT_LIST -> R.string.measurement_list_name
+            ProjectObjectKind.PLAN -> R.string.plan_name
+            ProjectObjectKind.SURVEY -> R.string.survey_name
+        }
+        val hintRes = when (ref.kind) {
+            ProjectObjectKind.MEASUREMENT_LIST -> R.string.measurement_list_name_hint
+            ProjectObjectKind.PLAN -> R.string.plan_name_hint
+            ProjectObjectKind.SURVEY -> R.string.survey_name_hint
+        }
+        ListNameDialog(
+            title = stringResource(titleRes),
+            labelRes = nameRes,
+            hintRes = hintRes,
+            initialName = objectNames[ref.key()] ?: ref.refId,
+            confirmLabel = stringResource(R.string.action_save),
+            onConfirm = { name ->
+                renamingObject = null
+                when (ref.kind) {
+                    ProjectObjectKind.MEASUREMENT_LIST ->
+                        measurementsViewModel.renameList(ref.refId, name)
+
+                    ProjectObjectKind.PLAN -> plansViewModel.renamePlan(ref.refId, name)
+                    ProjectObjectKind.SURVEY -> surveysViewModel.renameSurvey(ref.refId, name)
+                }
+            },
+            onDismiss = { renamingObject = null },
+        )
+    }
+
+    convertingSurvey?.let { survey ->
+        ListNameDialog(
+            title = stringResource(R.string.survey_convert_to_plan),
+            labelRes = R.string.plan_name,
+            hintRes = R.string.plan_name_hint,
+            initialName = defaultPlanName,
+            confirmLabel = stringResource(R.string.action_create),
+            onConfirm = { name ->
+                convertingSurvey = null
+                onConvertSurvey(survey, name)
+            },
+            onDismiss = { convertingSurvey = null },
         )
     }
 
@@ -1139,23 +1212,29 @@ fun ProjectTreeScreen(
                 val folderId = createObjectFolderId
                 createObjectKind = null
                 expand(folderId)
+                // A new document is opened right away; attaching to the project finishes in the
+                // background and the tree is still there when the user comes back.
+                val onCreated: (String) -> Unit = { id ->
+                    viewModel.attachObject(createKind, id, folderId)
+                    onOpenObject(ProjectObjectRef(createKind, id, folderId))
+                }
                 when (createKind) {
                     ProjectObjectKind.MEASUREMENT_LIST -> measurementsViewModel.createList(
                         name = name,
                         open = false,
-                        onCreated = { id -> viewModel.attachObject(createKind, id, folderId) },
+                        onCreated = onCreated,
                     )
 
                     ProjectObjectKind.PLAN -> plansViewModel.createPlan(
                         name = name,
                         open = false,
-                        onCreated = { id -> viewModel.attachObject(createKind, id, folderId) },
+                        onCreated = onCreated,
                     )
 
                     ProjectObjectKind.SURVEY -> surveysViewModel.createSurvey(
                         name = name,
                         open = false,
-                        onCreated = { id -> viewModel.attachObject(createKind, id, folderId) },
+                        onCreated = onCreated,
                     )
                 }
             },
@@ -1242,6 +1321,8 @@ private fun FolderRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 FolderMenuButton(
+                    expanded = expanded,
+                    onToggle = onToggle,
                     onAddFolder = onAddFolder,
                     onAddList = onAddList,
                     onAddPlan = onAddPlan,
@@ -1257,6 +1338,8 @@ private fun FolderRow(
 
 @Composable
 private fun FolderMenuButton(
+    expanded: Boolean,
+    onToggle: () -> Unit,
     onAddFolder: () -> Unit,
     onAddList: () -> Unit,
     onAddPlan: () -> Unit,
@@ -1278,6 +1361,14 @@ private fun FolderMenuButton(
             expanded = menuOpen,
             onDismissRequest = { menuOpen = false },
         ) {
+            ProjectMenuItem(
+                icon = if (expanded) R.drawable.ic_expand_less else R.drawable.ic_expand_more,
+                labelRes = if (expanded) R.string.action_collapse else R.string.action_expand,
+                onClick = {
+                    menuOpen = false
+                    onToggle()
+                },
+            )
             ProjectMenuItem(
                 icon = R.drawable.ic_folder,
                 labelRes = R.string.project_add_folder_here,
@@ -1343,6 +1434,11 @@ private fun ObjectRow(
     ref: ProjectObjectRef,
     name: String,
     meta: String,
+    plan: PlanDocument?,
+    survey: SurveyDocument?,
+    surveyViewModel: SurveyViewModel,
+    thumbnailSize: Dp,
+    thumbnailDecodePx: Int,
     depth: Int,
     style: ProjectTreeStyle,
     topGap: Dp,
@@ -1351,6 +1447,8 @@ private fun ObjectRow(
     dimmed: Boolean,
     showDivider: Boolean,
     onOpen: () -> Unit,
+    onRename: () -> Unit,
+    onConvert: () -> Unit,
     onMove: () -> Unit,
     onRemove: () -> Unit,
     onDelete: () -> Unit,
@@ -1405,15 +1503,37 @@ private fun ObjectRow(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    // Keeps a slot for the folder chevron so object names line up with folder names
-                    // of the same depth.
-                    Spacer(Modifier.size(20.dp))
+                    // The type icon takes the slot of the folder chevron so object names stay
+                    // aligned with folder names of the same depth.
                     Icon(
                         painter = painterResource(icon),
                         contentDescription = null,
-                        modifier = Modifier.size(22.dp),
+                        modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    // Only plans and surveys have a preview; the slot stays empty for lists and
+                    // for surveys without a photo, so all rows keep the same name offset.
+                    Box(modifier = Modifier.size(thumbnailSize)) {
+                        when (ref.kind) {
+                            ProjectObjectKind.MEASUREMENT_LIST -> Unit
+                            ProjectObjectKind.PLAN -> plan?.let {
+                                PlanThumbnail(plan = it, modifier = Modifier.matchParentSize())
+                            }
+
+                            ProjectObjectKind.SURVEY -> {
+                                val photo = survey?.photo
+                                if (photo != null) {
+                                    SurveyThumbnail(
+                                        surveyId = ref.refId,
+                                        photo = photo,
+                                        viewModel = surveyViewModel,
+                                        modifier = Modifier.matchParentSize(),
+                                        maxSidePx = thumbnailDecodePx,
+                                    )
+                                }
+                            }
+                        }
+                    }
                     Column(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -1433,6 +1553,11 @@ private fun ObjectRow(
                         }
                     }
                     ObjectMenuButton(
+                        onOpen = onOpen,
+                        onRename = onRename,
+                        showConvert = ref.kind == ProjectObjectKind.SURVEY &&
+                            survey?.hasSketch == true,
+                        onConvert = onConvert,
                         onMove = onMove,
                         onRemove = onRemove,
                         onDelete = onDelete,
@@ -1445,6 +1570,10 @@ private fun ObjectRow(
 
 @Composable
 private fun ObjectMenuButton(
+    onOpen: () -> Unit,
+    onRename: () -> Unit,
+    showConvert: Boolean,
+    onConvert: () -> Unit,
     onMove: () -> Unit,
     onRemove: () -> Unit,
     onDelete: () -> Unit,
@@ -1462,6 +1591,32 @@ private fun ObjectMenuButton(
             expanded = menuOpen,
             onDismissRequest = { menuOpen = false },
         ) {
+            ProjectMenuItem(
+                icon = R.drawable.ic_visibility,
+                labelRes = R.string.action_open,
+                onClick = {
+                    menuOpen = false
+                    onOpen()
+                },
+            )
+            ProjectMenuItem(
+                icon = R.drawable.ic_edit,
+                labelRes = R.string.action_rename,
+                onClick = {
+                    menuOpen = false
+                    onRename()
+                },
+            )
+            if (showConvert) {
+                ProjectMenuItem(
+                    icon = R.drawable.ic_section_plans,
+                    labelRes = R.string.survey_convert_to_plan,
+                    onClick = {
+                        menuOpen = false
+                        onConvert()
+                    },
+                )
+            }
             ProjectMenuItem(
                 icon = R.drawable.ic_move,
                 labelRes = R.string.action_move,
@@ -1567,6 +1722,14 @@ private fun iconFor(entry: ProjectTree.Entry): Int = when (entry) {
         ProjectObjectKind.SURVEY -> R.drawable.ic_section_capture
     }
 }
+
+/** Side of the small and large plan/survey previews on a tree row; other rows keep the slot empty. */
+private val TreeThumbnailSmall = 24.dp
+private val TreeThumbnailLarge = 48.dp
+
+/** Long side of the decoded photo for the tree preview; the large row needs the list resolution. */
+private const val TreeThumbnailDecodeSmall = 96
+private const val TreeThumbnailDecodeLarge = 192
 
 private val NESTED_STEP = 16.dp
 

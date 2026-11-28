@@ -14,7 +14,10 @@ import com.planmeasure.projects.ProjectObjectKind
 import com.planmeasure.projects.ProjectObjectRef
 import com.planmeasure.projects.ProjectsViewModel
 import com.planmeasure.projects.key
+import com.planmeasure.settings.ProjectTreePreview
 import com.planmeasure.settings.ProjectTreeStyle
+import com.planmeasure.survey.SurveyDocument
+import com.planmeasure.survey.SurveyToPlan
 import com.planmeasure.survey.SurveyViewModel
 import com.planmeasure.ui.measurements.MeasurementListScreen
 import com.planmeasure.ui.plans.PlanEditorScreen
@@ -32,6 +35,8 @@ import com.planmeasure.ui.survey.SurveyEditorScreen
 fun ProjectsFlow(
     labViewModel: LabViewModel,
     treeStyle: ProjectTreeStyle,
+    treePreview: ProjectTreePreview,
+    showHints: Boolean,
     onExit: () -> Unit,
     onOpenConnect: () -> Unit,
     viewModel: ProjectsViewModel = viewModel(),
@@ -126,6 +131,27 @@ fun ProjectsFlow(
     val survey = openSurvey
     val currentObject = objectKey
 
+    // A plan converted from a survey keeps the folder of the source: the tree is the place where
+    // the user organised the survey, so the replacement belongs beside it (ADR 0023).
+    val convertSurvey: (SurveyDocument, String) -> Unit = convert@{ source, name ->
+        val content = SurveyToPlan.convert(source) ?: return@convert
+        val folderId = project?.objects
+            ?.firstOrNull {
+                it.kind == ProjectObjectKind.SURVEY && it.refId == source.id
+            }
+            ?.folderId
+        plansViewModel.createPlan(
+            name = name,
+            unit = source.unit,
+            content = content,
+            open = false,
+            onCreated = { id ->
+                viewModel.attachObject(ProjectObjectKind.PLAN, id, folderId)
+                openObject(ProjectObjectRef(ProjectObjectKind.PLAN, id, folderId))
+            },
+        )
+    }
+
     when {
         currentObject != null &&
             currentObject.kind == ProjectObjectKind.MEASUREMENT_LIST &&
@@ -149,6 +175,7 @@ fun ProjectsFlow(
                 plan = plan,
                 viewModel = plansViewModel,
                 labViewModel = labViewModel,
+                showHints = showHints,
                 onOpenConnect = onOpenConnect,
                 onDeletePlan = deletePlan,
                 onBack = ::closeObject,
@@ -163,8 +190,10 @@ fun ProjectsFlow(
                 survey = survey,
                 viewModel = surveysViewModel,
                 labViewModel = labViewModel,
+                showHints = showHints,
                 onOpenConnect = onOpenConnect,
                 onDeleteSurvey = deleteSurvey,
+                onConvertToPlan = convertSurvey,
                 onBack = ::closeObject,
             )
         }
@@ -177,11 +206,13 @@ fun ProjectsFlow(
                 plans = plans,
                 surveys = surveys,
                 treeStyle = treeStyle,
+                treePreview = treePreview,
                 viewModel = viewModel,
                 measurementsViewModel = measurementsViewModel,
                 plansViewModel = plansViewModel,
                 surveysViewModel = surveysViewModel,
                 onDeleteObject = deleteObject,
+                onConvertSurvey = convertSurvey,
                 onBack = {
                     closeObject()
                     viewModel.close()
