@@ -109,6 +109,11 @@
     <string name="unit_millimeters">mm</string>
     <string name="unit_feet">ft</string>
     <string name="unit_inches">in</string>
+    <string name="unit_square_meters">m²</string>
+    <string name="unit_square_centimeters">cm²</string>
+    <string name="unit_square_millimeters">mm²</string>
+    <string name="unit_square_feet">ft²</string>
+    <string name="unit_square_inches">in²</string>
 
     <!-- Plans -->
     <string name="plan_new">New plan</string>
@@ -151,6 +156,55 @@
     <string name="plan_error_create">Could not create the plan</string>
     <string name="plan_error_delete">Could not delete the plan</string>
     <string name="plan_error_load">Could not open the plan</string>
+
+    <!-- Plan calculations -->
+    <string name="plan_calculations">Calculations</string>
+    <string name="plan_calculations_empty_title">No calculations yet</string>
+    <string name="plan_calculations_empty_text">Calculate the area of a closed outline or the total length of selected lines.</string>
+    <string name="plan_calculation_new">New calculation</string>
+    <string name="plan_calculation_view">View</string>
+    <string name="plan_calculation_needs_scale">Add at least one dimension to calculate in real units.</string>
+    <string name="plan_calculation_area">Area</string>
+    <string name="plan_calculation_length">Length</string>
+    <string name="plan_calculation_area_hint">Tap inside a closed outline to measure its area and perimeter.</string>
+    <string name="plan_calculation_length_hint">Tap the lines whose total length you need.</string>
+    <string name="plan_calculation_gross">Outline area</string>
+    <string name="plan_calculation_holes">Cut-outs (%1$d)</string>
+    <string name="plan_calculation_net">Total</string>
+    <string name="plan_calculation_perimeter">Perimeter</string>
+    <string name="plan_calculation_area_meta">%1$s · perimeter %2$s</string>
+    <string name="plan_calculation_subtract_holes">Subtract nested outlines</string>
+    <string name="plan_calculation_holes_subtracted">Cut-outs are subtracted</string>
+    <string name="plan_calculation_measured">Measured %1$d of %2$d walls</string>
+    <string name="plan_calculation_invalid">The drawing has changed; the calculation is unavailable.</string>
+    <string name="plan_calculation_invalid_net">Cut-outs are larger than the outline.</string>
+    <string name="plan_calculation_save_title">Save calculation</string>
+    <string name="plan_calculation_name">Calculation name</string>
+    <string name="plan_calculation_name_hint">e.g. Wall without window</string>
+    <string name="plan_calculation_comment">Comment</string>
+    <string name="plan_calculation_comment_title">Comment</string>
+    <string name="plan_calculation_comment_hint">e.g. Window in the living room</string>
+    <string name="plan_calculation_comment_empty">No comment</string>
+    <string name="plan_calculation_comment_add">Add comment</string>
+    <string name="plan_calculation_comment_edit">Edit comment</string>
+    <string name="plan_calculation_sketch">Calculation sketch</string>
+    <string name="plan_calculation_sketch_empty">No drawing</string>
+    <string name="plan_calculation_sketch_description">Sketch of the measured part of the plan</string>
+    <string name="plan_calculation_default_area">Area %1$d</string>
+    <string name="plan_calculation_default_length">Length %1$d</string>
+    <string name="plan_calculation_rename_title">Rename calculation</string>
+    <string name="plan_calculation_delete_title">Delete calculation?</string>
+    <string name="plan_calculation_delete_text">The calculation “%1$s” will be removed. The drawing will not change.</string>
+    <string name="plan_calculation_delete">Delete calculation</string>
+    <string name="plan_calculation_reset">Reset</string>
+    <plurals name="plan_calculation_segments">
+        <item quantity="one">%1$d line selected</item>
+        <item quantity="other">%1$d lines selected</item>
+    </plurals>
+    <plurals name="plan_calculation_mismatch">
+        <item quantity="one">%1$d dimension does not match the drawing</item>
+        <item quantity="other">%1$d dimensions do not match the drawing</item>
+    </plurals>
 
     <!-- Projects -->
     <string name="project_new">New project</string>

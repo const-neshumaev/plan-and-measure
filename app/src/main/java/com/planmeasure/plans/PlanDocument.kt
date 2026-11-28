@@ -5,7 +5,7 @@ import com.planmeasure.units.LengthUnit
 import kotlinx.serialization.Serializable
 
 /** Current version of the on-disk plan document. Bump when the shape changes. */
-const val PLAN_SCHEMA_VERSION = 5
+const val PLAN_SCHEMA_VERSION = 7
 
 /**
  * Size of the drawing sheet in grid units; the sheet is a rectangle starting at the origin.
@@ -75,6 +75,38 @@ data class PlanContour(
         get() = edges.size >= 3 && edges.first().startNodeId == edges.last().endNodeId
 }
 
+/** What a saved plan calculation measures. */
+@Serializable
+enum class PlanCalculationKind { AREA, LENGTH }
+
+/**
+ * A named measurement the user asked the plan to show, see ADR 0020.
+ *
+ * The calculation stores what to measure, not the number: the value is derived from the current
+ * geometry every time it is shown. Reshaping the plan or changing a dimension then updates the
+ * result instead of leaving a stale number behind.
+ *
+ * An area calculation holds the edges of exactly one simple closed loop. The loop is derived from
+ * the graph, so a rectangle drawn as two chains from one corner to another is as measurable as one
+ * drawn in a single stroke. Nested loops inside it are subtracted unless [subtractHoles] is off.
+ * A length calculation holds any set of edges, which is how the user sums several walls without
+ * drawing them as one contour. [contourId] is kept for area calculations written before loops were
+ * derived from edges. [comment] is the user's own note about what was measured.
+ */
+@Serializable
+data class PlanCalculation(
+    val id: String,
+    val name: String,
+    val kind: PlanCalculationKind,
+    /** Legacy area target; new area calculations store [edgeIds] instead. */
+    val contourId: String? = null,
+    val edgeIds: List<String> = emptyList(),
+    val subtractHoles: Boolean = true,
+    val createdAt: Long,
+    /** Free-form note shown with the calculation; empty when the user did not add one. */
+    val comment: String = "",
+)
+
 /** One named drawing, stored as `plans/<id>.json`. */
 @Serializable
 data class PlanDocument(
@@ -99,6 +131,8 @@ data class PlanDocument(
     val scaleEdgeId: String? = null,
     val nodes: List<PlanNode> = emptyList(),
     val contours: List<PlanContour> = emptyList(),
+    /** Saved measurements of this drawing; their values are derived, not stored (ADR 0020). */
+    val calculations: List<PlanCalculation> = emptyList(),
 ) {
     val edgeCount: Int
         get() = contours.sumOf { it.edges.size }

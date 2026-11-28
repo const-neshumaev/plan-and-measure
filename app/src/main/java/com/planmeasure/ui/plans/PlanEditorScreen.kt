@@ -30,6 +30,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -48,6 +49,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.planmeasure.LabViewModel
 import com.planmeasure.R
+import com.planmeasure.plans.PlanCalculationKind
 import com.planmeasure.plans.PlanDimension
 import com.planmeasure.plans.PlanDocument
 import com.planmeasure.plans.PlanEditing
@@ -95,6 +97,19 @@ fun PlanEditorScreen(
     var showDelete by rememberSaveable { mutableStateOf(false) }
     var pendingSplit by remember { mutableStateOf<PendingEdgeSplit?>(null) }
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
+    var calculationsOpen by rememberSaveable { mutableStateOf(false) }
+    // The measurement mode is temporary: it replaces the drawing tools only while the user picks
+    // what to measure, and its selection is editor state rather than part of the document.
+    var calculationMode by rememberSaveable { mutableStateOf<PlanCalculationKind?>(null) }
+    var calculationEdgeIds by rememberSaveable(
+        plan.id,
+        stateSaver = listSaver(
+            save = { it.toList() },
+            restore = { it.toSet() },
+        ),
+    ) { mutableStateOf<Set<String>>(emptySet()) }
+    var subtractHoles by rememberSaveable { mutableStateOf(true) }
+    var showSaveCalculation by rememberSaveable { mutableStateOf(false) }
 
     // The selection must not outlive its edge: undo or a full clear removes it.
     val selectedEdge = plan.edges.firstOrNull { it.id == selectedEdgeId }
@@ -125,6 +140,33 @@ fun PlanEditorScreen(
     fun closeCard() {
         commitDimension()
         cardOpen = false
+    }
+
+    fun startCalculation() {
+        commitDimension()
+        cardOpen = false
+        selectedEdgeId = null
+        calculationsOpen = false
+        calculationMode = PlanCalculationKind.AREA
+        calculationEdgeIds = emptySet()
+        subtractHoles = true
+    }
+
+    fun cancelCalculation() {
+        calculationMode = null
+        calculationEdgeIds = emptySet()
+        showSaveCalculation = false
+    }
+
+    val toggleCalculationEdge: (String) -> Unit = { id ->
+        calculationEdgeIds = if (id in calculationEdgeIds) {
+            calculationEdgeIds - id
+        } else {
+            calculationEdgeIds + id
+        }
+    }
+    val clearCalculationSelection: () -> Unit = {
+        calculationEdgeIds = emptySet()
     }
 
     // Selecting another wall closes the card and keeps what was typed. Tapping the selected wall
@@ -204,6 +246,10 @@ fun PlanEditorScreen(
     BackHandler(enabled = cardOpen && selectedEdge != null && tool == PlanTool.Dimensions) {
         closeCard()
     }
+    // An unfinished measurement is cancelled first; a second back press leaves the plan.
+    BackHandler(enabled = calculationMode != null) {
+        cancelCalculation()
+    }
 
     LaunchedEffect(Unit) {
         viewModel.messages.collect { snackbarHostState.showSnackbar(it) }
@@ -222,114 +268,161 @@ fun PlanEditorScreen(
                 navigationIcon = {
                     IconButton(
                         onClick = {
-                            commitDimension()
-                            onBack()
+                            if (calculationMode != null) {
+                                cancelCalculation()
+                            } else {
+                                commitDimension()
+                                onBack()
+                            }
                         },
                     ) {
                         Icon(
-                            painter = painterResource(R.drawable.ic_arrow_back),
-                            contentDescription = stringResource(R.string.action_back),
+                            painter = painterResource(
+                                if (calculationMode != null) {
+                                    R.drawable.ic_close
+                                } else {
+                                    R.drawable.ic_arrow_back
+                                },
+                            ),
+                            contentDescription = stringResource(
+                                if (calculationMode != null) {
+                                    R.string.action_cancel
+                                } else {
+                                    R.string.action_back
+                                },
+                            ),
                         )
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = viewModel::undo,
-                        enabled = canUndo,
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_undo),
-                            contentDescription = stringResource(R.string.action_undo),
-                        )
-                    }
-                    // Deleting the line itself stays in Edit: in Dimensions mode the card owns the
-                    // delete action, so the same trash must not remove the wall behind it.
-                    if (tool == PlanTool.Edit && selectedEdge != null) {
+                    if (calculationMode == null) {
                         IconButton(
                             onClick = {
-                                selectedEdgeId = null
+                                commitDimension()
                                 cardOpen = false
-                                viewModel.removeEdge(selectedEdge.id)
+                                calculationsOpen = true
                             },
                         ) {
                             Icon(
-                                painter = painterResource(R.drawable.ic_delete),
-                                contentDescription = stringResource(R.string.plan_delete_edge),
+                                painter = painterResource(R.drawable.ic_calculate),
+                                contentDescription = stringResource(R.string.plan_calculations),
                             )
                         }
-                    }
-                    IconToggleButton(
-                        checked = showGrid,
-                        onCheckedChange = { showGrid = it },
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_grid),
-                            contentDescription = stringResource(R.string.plan_grid),
-                            tint = if (showGrid) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                        )
-                    }
-                    if (!viewport.isFitted) {
+                        IconButton(
+                            onClick = viewModel::undo,
+                            enabled = canUndo,
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_undo),
+                                contentDescription = stringResource(R.string.action_undo),
+                            )
+                        }
+                        // Deleting the line itself stays in Edit: in Dimensions mode the card owns
+                        // the delete action, so the same trash must not remove the wall behind it.
+                        if (tool == PlanTool.Edit && selectedEdge != null) {
+                            IconButton(
+                                onClick = {
+                                    selectedEdgeId = null
+                                    cardOpen = false
+                                    viewModel.removeEdge(selectedEdge.id)
+                                },
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_delete),
+                                    contentDescription = stringResource(R.string.plan_delete_edge),
+                                )
+                            }
+                        }
+                        IconToggleButton(
+                            checked = showGrid,
+                            onCheckedChange = { showGrid = it },
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_grid),
+                                contentDescription = stringResource(R.string.plan_grid),
+                                tint = if (showGrid) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                            )
+                        }
+                        Box {
+                            IconButton(onClick = { menuOpen = true }) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_more_vert),
+                                    contentDescription = stringResource(R.string.action_more),
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = menuOpen,
+                                onDismissRequest = { menuOpen = false },
+                            ) {
+                                // The fit action lives here because the top bar already has the
+                                // calculation icon and the other tools; a sixth icon would push
+                                // the plan name out of a phone screen.
+                                if (!viewport.isFitted) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.plan_fit_screen)) },
+                                        leadingIcon = {
+                                            Icon(
+                                                painter = painterResource(R.drawable.ic_fit_screen),
+                                                contentDescription = null,
+                                            )
+                                        },
+                                        onClick = {
+                                            menuOpen = false
+                                            viewport = PlanViewport()
+                                        },
+                                    )
+                                }
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.action_rename)) },
+                                    leadingIcon = {
+                                        Icon(
+                                            painter = painterResource(R.drawable.ic_edit),
+                                            contentDescription = null,
+                                        )
+                                    },
+                                    onClick = {
+                                        menuOpen = false
+                                        showRename = true
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.plan_clear)) },
+                                    leadingIcon = {
+                                        Icon(
+                                            painter = painterResource(R.drawable.ic_delete),
+                                            contentDescription = null,
+                                        )
+                                    },
+                                    enabled = plan.hasDrawing,
+                                    onClick = {
+                                        menuOpen = false
+                                        showClear = true
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.action_delete)) },
+                                    leadingIcon = {
+                                        Icon(
+                                            painter = painterResource(R.drawable.ic_delete),
+                                            contentDescription = null,
+                                        )
+                                    },
+                                    onClick = {
+                                        menuOpen = false
+                                        showDelete = true
+                                    },
+                                )
+                            }
+                        }
+                    } else if (!viewport.isFitted) {
                         IconButton(onClick = { viewport = PlanViewport() }) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_fit_screen),
                                 contentDescription = stringResource(R.string.plan_fit_screen),
-                            )
-                        }
-                    }
-                    Box {
-                        IconButton(onClick = { menuOpen = true }) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_more_vert),
-                                contentDescription = stringResource(R.string.action_more),
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = menuOpen,
-                            onDismissRequest = { menuOpen = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.action_rename)) },
-                                leadingIcon = {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_edit),
-                                        contentDescription = null,
-                                    )
-                                },
-                                onClick = {
-                                    menuOpen = false
-                                    showRename = true
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.plan_clear)) },
-                                leadingIcon = {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_delete),
-                                        contentDescription = null,
-                                    )
-                                },
-                                enabled = plan.hasDrawing,
-                                onClick = {
-                                    menuOpen = false
-                                    showClear = true
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.action_delete)) },
-                                leadingIcon = {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_delete),
-                                        contentDescription = null,
-                                    )
-                                },
-                                onClick = {
-                                    menuOpen = false
-                                    showDelete = true
-                                },
                             )
                         }
                     }
@@ -345,18 +438,22 @@ fun PlanEditorScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            // The rangefinder status stays visible while drawing: a reading goes only into an open
-            // dimension card, and the user has to know whether the device is there at all.
-            PlanConnectBanner(
-                connected = gattState.connected,
-                onConnect = onOpenConnect,
-                modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp),
-            )
-            UnitBar(
-                unit = plan.unit,
-                onUnitChange = ::changeUnit,
-                modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp),
-            )
+            // The status and unit bars stay out of the measurement mode: the selection needs the
+            // canvas, and the unit is chosen for the plan, not for one calculation.
+            if (calculationMode == null) {
+                // The rangefinder status stays visible while drawing: a reading goes only into an
+                // open dimension card, and the user has to know whether the device is there at all.
+                PlanConnectBanner(
+                    connected = gattState.connected,
+                    onConnect = onOpenConnect,
+                    modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp),
+                )
+                UnitBar(
+                    unit = plan.unit,
+                    onUnitChange = ::changeUnit,
+                    modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp),
+                )
+            }
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -373,12 +470,24 @@ fun PlanEditorScreen(
                     onSelectEdge = selectEdge,
                     onSplitEdge = splitEdge,
                     selectedEdgeId = selectedEdge?.id,
+                    calculationMode = calculationMode,
+                    calculationEdgeIds = calculationEdgeIds,
+                    calculationSubtractHoles = subtractHoles,
+                    onSelectCalculationArea = { calculationEdgeIds = it },
+                    onToggleCalculationEdge = toggleCalculationEdge,
+                    onClearCalculationSelection = clearCalculationSelection,
                     showGrid = showGrid,
                     viewport = viewport,
                     onViewportChange = { viewport = it },
                     modifier = Modifier.fillMaxSize(),
                 )
-                if (tool == PlanTool.Dimensions && cardOpen && selectedEdge != null && cardAnchor != null) {
+                if (
+                    calculationMode == null &&
+                    tool == PlanTool.Dimensions &&
+                    cardOpen &&
+                    selectedEdge != null &&
+                    cardAnchor != null
+                ) {
                     PlanDimensionCardOverlay(
                         anchor = cardAnchor,
                         canvasSize = canvasSize,
@@ -397,7 +506,7 @@ fun PlanEditorScreen(
                         onClose = ::closeCard,
                     )
                 }
-                if (!plan.hasDrawing) {
+                if (calculationMode == null && !plan.hasDrawing) {
                     Text(
                         text = stringResource(R.string.plan_draw_hint),
                         style = MaterialTheme.typography.bodyMedium,
@@ -410,7 +519,7 @@ fun PlanEditorScreen(
                 }
                 // The hint floats over the sheet on purpose: giving it its own row would change
                 // the canvas height when the tool changes, and the fitted sheet would jump.
-                if (tool == PlanTool.Edit && plan.hasDrawing) {
+                if (calculationMode == null && tool == PlanTool.Edit && plan.hasDrawing) {
                     Text(
                         text = stringResource(R.string.plan_edit_hint),
                         style = MaterialTheme.typography.bodySmall,
@@ -426,7 +535,12 @@ fun PlanEditorScreen(
                             .padding(horizontal = 10.dp, vertical = 4.dp),
                     )
                 }
-                if (tool == PlanTool.Dimensions && plan.hasDrawing && selectedEdge == null) {
+                if (
+                    calculationMode == null &&
+                    tool == PlanTool.Dimensions &&
+                    plan.hasDrawing &&
+                    selectedEdge == null
+                ) {
                     Text(
                         text = stringResource(R.string.plan_dimension_hint),
                         style = MaterialTheme.typography.bodySmall,
@@ -443,39 +557,59 @@ fun PlanEditorScreen(
                     )
                 }
             }
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                SingleChoiceSegmentedButtonRow {
-                    PlanTool.entries.forEachIndexed { index, value ->
-                        SegmentedButton(
-                            selected = tool == value,
-                            onClick = {
-                                commitDimension()
-                                tool = value
-                                selectedEdgeId = null
-                            },
-                            shape = SegmentedButtonDefaults.itemShape(
-                                index = index,
-                                count = PlanTool.entries.size,
-                            ),
-                        ) {
-                            // Labels only: three icon-and-text segments do not fit a phone width,
-                            // and Russian mode names are longer than the English ones.
-                            Text(
-                                text = stringResource(
-                                    when (value) {
-                                        PlanTool.Draw -> R.string.plan_tool_draw
-                                        PlanTool.Edit -> R.string.plan_tool_edit
-                                        PlanTool.Dimensions -> R.string.plan_tool_dimension
-                                    },
+            val activeCalculation = calculationMode
+            if (activeCalculation != null) {
+                PlanCalculationPanel(
+                    plan = plan,
+                    kind = activeCalculation,
+                    edgeIds = calculationEdgeIds,
+                    subtractHoles = subtractHoles,
+                    onKindChange = { newKind ->
+                        if (newKind != activeCalculation) {
+                            calculationMode = newKind
+                            calculationEdgeIds = emptySet()
+                        }
+                    },
+                    onSubtractHolesChange = { subtractHoles = it },
+                    onReset = clearCalculationSelection,
+                    onSave = { showSaveCalculation = true },
+                    onCancel = ::cancelCalculation,
+                )
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    SingleChoiceSegmentedButtonRow {
+                        PlanTool.entries.forEachIndexed { index, value ->
+                            SegmentedButton(
+                                selected = tool == value,
+                                onClick = {
+                                    commitDimension()
+                                    tool = value
+                                    selectedEdgeId = null
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(
+                                    index = index,
+                                    count = PlanTool.entries.size,
                                 ),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+                            ) {
+                                // Labels only: three icon-and-text segments do not fit a phone
+                                // width, and Russian mode names are longer than the English ones.
+                                Text(
+                                    text = stringResource(
+                                        when (value) {
+                                            PlanTool.Draw -> R.string.plan_tool_draw
+                                            PlanTool.Edit -> R.string.plan_tool_edit
+                                            PlanTool.Dimensions -> R.string.plan_tool_dimension
+                                        },
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
                         }
                     }
                 }
@@ -541,6 +675,48 @@ fun PlanEditorScreen(
                     Text(stringResource(R.string.action_cancel))
                 }
             },
+        )
+    }
+
+    val activeCalculation = calculationMode
+    if (showSaveCalculation && activeCalculation != null) {
+        val defaultName = when (activeCalculation) {
+            PlanCalculationKind.AREA -> stringResource(
+                R.string.plan_calculation_default_area,
+                plan.calculations.count { it.kind == PlanCalculationKind.AREA } + 1,
+            )
+            PlanCalculationKind.LENGTH -> stringResource(
+                R.string.plan_calculation_default_length,
+                plan.calculations.count { it.kind == PlanCalculationKind.LENGTH } + 1,
+            )
+        }
+        PlanCalculationNameDialog(
+            title = stringResource(R.string.plan_calculation_save_title),
+            initialName = defaultName,
+            onConfirm = { name, comment ->
+                showSaveCalculation = false
+                viewModel.saveCalculation(
+                    name = name,
+                    kind = activeCalculation,
+                    edgeIds = calculationEdgeIds,
+                    subtractHoles = subtractHoles,
+                    comment = comment,
+                )
+                cancelCalculation()
+                calculationsOpen = true
+            },
+            onDismiss = { showSaveCalculation = false },
+        )
+    }
+
+    if (calculationsOpen) {
+        PlanCalculationsSheet(
+            plan = plan,
+            onDismiss = { calculationsOpen = false },
+            onNew = ::startCalculation,
+            onRename = viewModel::renameCalculation,
+            onDelete = viewModel::deleteCalculation,
+            onCommentChange = viewModel::setCalculationComment,
         )
     }
 

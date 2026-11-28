@@ -25,7 +25,10 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.PathFillType
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -40,9 +43,11 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
+import com.planmeasure.plans.PlanCalculationKind
 import com.planmeasure.plans.PlanDocument
 import com.planmeasure.plans.PlanEdge
 import com.planmeasure.plans.PlanGeometry
+import com.planmeasure.plans.PlanMeasurements
 import com.planmeasure.plans.PlanPoint
 import com.planmeasure.plans.PlanScale
 import com.planmeasure.plans.PlanSize
@@ -75,9 +80,6 @@ private const val RIPPLE_PERIOD_MILLIS = 1100
 private const val LONG_PRESS_GRAB_MILLIS = 300L
 private const val MAJOR_GRID_STEP = 5
 private const val FIT_REFIT_MILLIS = 250
-
-/** Prefix of a dimension the drawing does not match; the symbol is the same in every language. */
-private const val MISMATCH_MARK = "≈ "
 
 /** Below this spacing the grid lines merge into a solid field and the grid is not drawn. */
 private val MinGridSpacing = 8.dp
@@ -136,6 +138,12 @@ fun PlanCanvas(
     onSplitEdge: (edgeId: String, at: PlanPoint) -> Unit,
     modifier: Modifier = Modifier,
     selectedEdgeId: String? = null,
+    calculationMode: PlanCalculationKind? = null,
+    calculationEdgeIds: Set<String> = emptySet(),
+    calculationSubtractHoles: Boolean = true,
+    onSelectCalculationArea: (edgeIds: Set<String>) -> Unit = {},
+    onToggleCalculationEdge: (edgeId: String) -> Unit = {},
+    onClearCalculationSelection: () -> Unit = {},
     showGrid: Boolean = true,
     viewport: PlanViewport = PlanViewport(),
     onViewportChange: (PlanViewport) -> Unit = {},
@@ -149,6 +157,11 @@ fun PlanCanvas(
     val labelContent = MaterialTheme.colorScheme.onPrimaryContainer
     val mismatchFill = MaterialTheme.colorScheme.errorContainer
     val mismatchContent = MaterialTheme.colorScheme.onErrorContainer
+    // On a dark canvas a primary-coloured glow is barely distinguishable from an already measured
+    // wall. A light halo gives the selected edge the contrast the light theme gets from its dark
+    // primary over a light sheet.
+    val darkCanvas = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val selectionHalo = MaterialTheme.colorScheme.onSurface
     val haptic = LocalHapticFeedback.current
 
     // Dimension text is laid out in the composition, not on every frame: measuring texts during
@@ -159,6 +172,26 @@ fun PlanCanvas(
     // A dimension the fixed angles cannot hold stays a label, and the drawing disagrees with it
     // (ADR 0012). The mark keeps the value readable while showing that the wall is drawn differently.
     val mismatched = remember(plan) { PlanScale.mismatchedEdgeIds(plan) }
+    // The fill is computed outside the draw pass: finding loops on every frame of a pinch would be
+    // wasteful. Holes are included only when the user asked to subtract them, so the fill is the
+    // area the calculation actually shows.
+    val calculationFill = remember(plan, calculationMode, calculationEdgeIds, calculationSubtractHoles) {
+        if (calculationMode != PlanCalculationKind.AREA || calculationEdgeIds.isEmpty()) {
+            null
+        } else {
+            val outline = PlanMeasurements.loopPoints(plan, calculationEdgeIds)
+            if (outline == null) {
+                null
+            } else {
+                val holes = if (calculationSubtractHoles) {
+                    PlanMeasurements.holeLoops(plan, calculationEdgeIds).map { it.points }
+                } else {
+                    emptyList()
+                }
+                CalculationFill(outline, holes)
+            }
+        }
+    }
     val labelLayouts = plan.edges.mapNotNull { edge ->
         val dimension = edge.dimension ?: return@mapNotNull null
         val mark = if (edge.id in mismatched) MISMATCH_MARK else ""
@@ -190,6 +223,11 @@ fun PlanCanvas(
     // The selection changes during the gesture (a long press selects the edge it grabbed), so the
     // handler must read the current value instead of the one captured at installation.
     val liveSelectedEdgeId = rememberUpdatedState(selectedEdgeId)
+    // Calculation selection changes on tap-up only, so the latest callbacks can be read without
+    // restarting the gesture detector in the middle of a touch.
+    val liveOnSelectCalculationArea = rememberUpdatedState(onSelectCalculationArea)
+    val liveOnToggleCalculationEdge = rememberUpdatedState(onToggleCalculationEdge)
+    val liveOnClearCalculationSelection = rememberUpdatedState(onClearCalculationSelection)
 
     // The rings repeat while the grab lasts: a single burst is easy to miss when the finger starts
     // moving at once.
@@ -212,7 +250,75 @@ fun PlanCanvas(
     // The tool is a key of both branches on purpose: a pointerInput element is considered equal
     // when its keys match, and its handler is then not updated, so two branches with the same keys
     // would keep the handler that was installed first (the tool would stop switching).
-    val gesture = when (tool) {
+    val gesture = if (calculationMode != null) {
+        val mode = calculationMode
+        Modifier.pointerInput(mode, plan) {
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                val canvas = Size(size.width.toFloat(), size.height.toFloat())
+                val world = PlanSize(fitWidth.value.toDouble(), fitHeight.value.toDouble())
+                val padding = SheetMargin.toPx()
+                val transform = planTransform(canvas, world, liveViewport.value, padding)
+                val downWorld = transform.toWorld(down.position)
+
+                var dragged = false
+                var tapped = false
+                var pinch: PointerEvent? = null
+                try {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        if (event.changes.count { it.pressed } > 1) {
+                            pinch = event
+                            break
+                        }
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        if (change.changedToUpIgnoreConsumed()) {
+                            tapped = !dragged
+                            break
+                        }
+                        if ((change.position - down.position).getDistance() >
+                            viewConfiguration.touchSlop
+                        ) {
+                            dragged = true
+                        }
+                    }
+                    pinch?.let { event ->
+                        trackViewGesture(event, liveViewport.value, canvas, world, padding) {
+                            liveOnViewportChange.value(it)
+                        }
+                    }
+                } finally {
+                    if (tapped) {
+                        when (mode) {
+                            PlanCalculationKind.AREA -> {
+                                val loop = PlanMeasurements.loopAt(plan, downWorld)
+                                if (loop != null) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    liveOnSelectCalculationArea.value(loop.edgeIds.toSet())
+                                } else {
+                                    liveOnClearCalculationSelection.value()
+                                }
+                            }
+                            PlanCalculationKind.LENGTH -> {
+                                val edge = PlanGeometry.nearestEdge(
+                                    nodes = plan.nodes,
+                                    contours = plan.contours,
+                                    point = downWorld,
+                                    tolerance = (EdgeTapRadius.toPx() / transform.scale).toDouble(),
+                                )
+                                if (edge != null) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    liveOnToggleCalculationEdge.value(edge.id)
+                                } else {
+                                    liveOnClearCalculationSelection.value()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else when (tool) {
         PlanTool.Draw -> Modifier.pointerInput(tool, plan) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false)
@@ -513,6 +619,8 @@ fun PlanCanvas(
     Canvas(modifier = modifier.clipToBounds().then(gesture)) {
         val world = PlanSize(fitWidth.value.toDouble(), fitHeight.value.toDouble())
         val transform = planTransform(size, world, viewport, SheetMargin.toPx())
+        val selectionGlowWidth = LineWidth.toPx() * if (darkCanvas) 7.0f else 5.5f
+        val selectedLineWidth = LineWidth.toPx() * if (darkCanvas) 3.0f else 2.4f
         drawRect(
             color = gridColor.copy(alpha = 0.5f),
             topLeft = transform.topLeft(),
@@ -549,11 +657,24 @@ fun PlanCanvas(
         fun pointOf(nodeId: String): PlanPoint? =
             overrides[nodeId] ?: nodesById[nodeId]?.let { PlanPoint(it.x, it.y) }
 
+        // The selected area is filled, so the result in the panel has a visible subject even when
+        // its walls are short. Even-odd filling keeps the grid visible in cut-outs instead of
+        // painting a second opaque path over it. Length selection needs no fill: the highlighted
+        // edges are the answer.
+        calculationFill?.let { fill ->
+            val path = Path()
+            path.fillType = PathFillType.EvenOdd
+            addPolygon(path, fill.outline, transform)
+            fill.holes.forEach { hole -> addPolygon(path, hole, transform) }
+            drawPath(path, accentColor.copy(alpha = if (darkCanvas) 0.24f else 0.16f))
+        }
+
         plan.contours.forEach { contour ->
             contour.edges.forEach { edge ->
                 val from = pointOf(edge.startNodeId) ?: return@forEach
                 val to = pointOf(edge.endNodeId) ?: return@forEach
-                val selected = edge.id == selectedEdgeId
+                val calculationSelected = calculationMode != null && edge.id in calculationEdgeIds
+                val selected = edge.id == selectedEdgeId || calculationSelected
                 val measured = edge.dimension != null
                 val differs = edge.id in mismatched
                 // A measured wall is thicker and takes the accent colour, so it separates from a
@@ -561,7 +682,7 @@ fun PlanCanvas(
                 // whose dimension the drawing cannot hold takes the error colour instead: the label
                 // of a short wall may be hidden, and the disagreement has to stay visible anyway.
                 val width = when {
-                    selected -> LineWidth.toPx() * 2.4f
+                    selected -> selectedLineWidth
                     measured -> LineWidth.toPx() * 1.8f
                     else -> LineWidth.toPx()
                 }
@@ -569,11 +690,16 @@ fun PlanCanvas(
                 val endPx = transform.toPx(to)
                 val highlighted = if (differs) errorColor else accentColor
                 if (selected) {
+                    val glow = if (darkCanvas) {
+                        selectionHalo.copy(alpha = 0.38f)
+                    } else {
+                        highlighted.copy(alpha = 0.20f)
+                    }
                     drawLine(
-                        color = highlighted.copy(alpha = 0.20f),
+                        color = glow,
                         start = startPx,
                         end = endPx,
-                        strokeWidth = LineWidth.toPx() * 5.5f,
+                        strokeWidth = selectionGlowWidth,
                         cap = StrokeCap.Round,
                     )
                 }
@@ -716,12 +842,30 @@ private suspend fun AwaitPointerEventScope.trackViewGesture(
     }
 }
 
+/** World-space polygons of the selected area: its outline and, when subtracting, its cut-outs. */
+private data class CalculationFill(
+    val outline: List<PlanPoint>,
+    val holes: List<List<PlanPoint>>,
+)
+
 private data class NodeDrag(val nodeId: String, val point: PlanPoint)
 
 private data class EdgeDrag(val edgeId: String, val offset: PlanPoint)
 
 /** Edge under the finger and the point of it that the press grabbed; both are needed to slide it. */
 private data class EdgeCandidate(val edge: PlanEdge, val grabPoint: PlanPoint)
+
+/** Adds an ordered polygon to [path] in canvas pixels. */
+private fun addPolygon(path: Path, points: List<PlanPoint>, transform: WorldTransform) {
+    if (points.isEmpty()) return
+    val first = transform.toPx(points.first())
+    path.moveTo(first.x, first.y)
+    points.drop(1).forEach { point ->
+        val pixel = transform.toPx(point)
+        path.lineTo(pixel.x, pixel.y)
+    }
+    path.close()
+}
 
 /** What the grab feedback is attached to while the finger holds it. */
 private sealed interface GrabRipple {

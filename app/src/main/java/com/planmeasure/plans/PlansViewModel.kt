@@ -271,6 +271,120 @@ class PlansViewModel(app: Application) : AndroidViewModel(app) {
         commit(current.copy(unit = unit, updatedAt = System.currentTimeMillis()))
     }
 
+    /**
+     * Saves a named calculation of the open plan.
+     *
+     * The calculation stores what to measure, not the number: [PlanMeasurements] derives the value
+     * from the current geometry, so later edits update the result (ADR 0020). Invalid selections are
+     * ignored here as a safety net; the editor already keeps the save action disabled for them.
+     */
+    fun saveCalculation(
+        name: String,
+        kind: PlanCalculationKind,
+        edgeIds: Collection<String> = emptyList(),
+        subtractHoles: Boolean = true,
+        comment: String = "",
+    ) {
+        val current = _openPlan.value ?: return
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        val requested = edgeIds.distinct()
+        if (requested.isEmpty()) return
+        val calculation = when (kind) {
+            PlanCalculationKind.AREA -> {
+                // The loop is resolved from the edges, so this also accepts a shape assembled from
+                // several open contours; a broken or branching set is refused.
+                val measurement = PlanMeasurements.measureArea(current, requested, subtractHoles)
+                if (measurement == null || measurement.netAreaSquareMillimeters < 0.0) return
+                PlanCalculation(
+                    id = newId(),
+                    name = trimmed,
+                    kind = kind,
+                    edgeIds = requested,
+                    subtractHoles = subtractHoles,
+                    createdAt = System.currentTimeMillis(),
+                    comment = comment.trim(),
+                )
+            }
+            PlanCalculationKind.LENGTH -> {
+                val existing = current.edges.map { it.id }.toSet()
+                if (requested.any { it !in existing }) return
+                PlanCalculation(
+                    id = newId(),
+                    name = trimmed,
+                    kind = kind,
+                    edgeIds = requested,
+                    createdAt = System.currentTimeMillis(),
+                    comment = comment.trim(),
+                )
+            }
+        }
+        commit(
+            current.copy(
+                schemaVersion = PLAN_SCHEMA_VERSION,
+                calculations = current.calculations + calculation,
+                updatedAt = System.currentTimeMillis(),
+            ),
+        )
+    }
+
+    fun renameCalculation(id: String, name: String) {
+        val current = _openPlan.value ?: return
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        var changed = false
+        val calculations = current.calculations.map { calculation ->
+            if (calculation.id != id || calculation.name == trimmed) {
+                calculation
+            } else {
+                changed = true
+                calculation.copy(name = trimmed)
+            }
+        }
+        if (!changed) return
+        commit(
+            current.copy(
+                schemaVersion = PLAN_SCHEMA_VERSION,
+                calculations = calculations,
+                updatedAt = System.currentTimeMillis(),
+            ),
+        )
+    }
+
+    fun setCalculationComment(id: String, comment: String) {
+        val current = _openPlan.value ?: return
+        val trimmed = comment.trim()
+        var changed = false
+        val calculations = current.calculations.map { calculation ->
+            if (calculation.id != id || calculation.comment == trimmed) {
+                calculation
+            } else {
+                changed = true
+                calculation.copy(comment = trimmed)
+            }
+        }
+        if (!changed) return
+        commit(
+            current.copy(
+                schemaVersion = PLAN_SCHEMA_VERSION,
+                calculations = calculations,
+                updatedAt = System.currentTimeMillis(),
+            ),
+        )
+    }
+
+    fun deleteCalculation(id: String) {
+        val current = _openPlan.value ?: return
+        if (current.calculations.none { it.id == id }) return
+        commit(
+            current.copy(
+                schemaVersion = PLAN_SCHEMA_VERSION,
+                calculations = current.calculations.filterNot { it.id == id },
+                updatedAt = System.currentTimeMillis(),
+            ),
+        )
+    }
+
     /** Removes the dimension of [edgeId] and keeps the edge itself. */
     fun removeEdgeDimension(edgeId: String) {
         val current = _openPlan.value ?: return

@@ -113,6 +113,11 @@
     <string name="unit_millimeters">мм</string>
     <string name="unit_feet">ft</string>
     <string name="unit_inches">in</string>
+    <string name="unit_square_meters">м²</string>
+    <string name="unit_square_centimeters">см²</string>
+    <string name="unit_square_millimeters">мм²</string>
+    <string name="unit_square_feet">ft²</string>
+    <string name="unit_square_inches">in²</string>
 
     <!-- Plans -->
     <string name="plan_new">Новый план</string>
@@ -157,6 +162,59 @@
     <string name="plan_error_create">Не удалось создать план</string>
     <string name="plan_error_delete">Не удалось удалить план</string>
     <string name="plan_error_load">Не удалось открыть план</string>
+
+    <!-- Plan calculations -->
+    <string name="plan_calculations">Расчёты</string>
+    <string name="plan_calculations_empty_title">Расчётов пока нет</string>
+    <string name="plan_calculations_empty_text">Посчитайте площадь замкнутого контура или общую длину выбранных линий.</string>
+    <string name="plan_calculation_new">Новый расчёт</string>
+    <string name="plan_calculation_view">Просмотр</string>
+    <string name="plan_calculation_needs_scale">Поставьте хотя бы один размер, чтобы считать в реальных единицах.</string>
+    <string name="plan_calculation_area">Площадь</string>
+    <string name="plan_calculation_length">Длина</string>
+    <string name="plan_calculation_area_hint">Коснитесь внутри замкнутого контура, чтобы посчитать площадь и периметр.</string>
+    <string name="plan_calculation_length_hint">Коснитесь линий, общую длину которых нужно посчитать.</string>
+    <string name="plan_calculation_gross">Площадь контура</string>
+    <string name="plan_calculation_holes">Вырезы (%1$d)</string>
+    <string name="plan_calculation_net">Итого</string>
+    <string name="plan_calculation_perimeter">Периметр</string>
+    <string name="plan_calculation_area_meta">%1$s · периметр %2$s</string>
+    <string name="plan_calculation_subtract_holes">Вычитать вложенные контуры</string>
+    <string name="plan_calculation_holes_subtracted">Вырезы вычитаются</string>
+    <string name="plan_calculation_measured">Измерено %1$d из %2$d стен</string>
+    <string name="plan_calculation_invalid">Чертёж изменился, расчёт недоступен.</string>
+    <string name="plan_calculation_invalid_net">Вырезы больше контура.</string>
+    <string name="plan_calculation_save_title">Сохранить расчёт</string>
+    <string name="plan_calculation_name">Название расчёта</string>
+    <string name="plan_calculation_name_hint">Например, стена без окна</string>
+    <string name="plan_calculation_comment">Комментарий</string>
+    <string name="plan_calculation_comment_title">Комментарий</string>
+    <string name="plan_calculation_comment_hint">Например, окно в гостиной</string>
+    <string name="plan_calculation_comment_empty">Без комментария</string>
+    <string name="plan_calculation_comment_add">Добавить комментарий</string>
+    <string name="plan_calculation_comment_edit">Изменить комментарий</string>
+    <string name="plan_calculation_sketch">Схема расчёта</string>
+    <string name="plan_calculation_sketch_empty">Нет чертежа</string>
+    <string name="plan_calculation_sketch_description">Схема измеренного участка плана</string>
+    <string name="plan_calculation_default_area">Площадь %1$d</string>
+    <string name="plan_calculation_default_length">Длина %1$d</string>
+    <string name="plan_calculation_rename_title">Переименовать расчёт</string>
+    <string name="plan_calculation_delete_title">Удалить расчёт?</string>
+    <string name="plan_calculation_delete_text">Расчёт «%1$s» будет удалён. Чертёж не изменится.</string>
+    <string name="plan_calculation_delete">Удалить расчёт</string>
+    <string name="plan_calculation_reset">Сбросить</string>
+    <plurals name="plan_calculation_segments">
+        <item quantity="one">Выбран %1$d отрезок</item>
+        <item quantity="few">Выбрано %1$d отрезка</item>
+        <item quantity="many">Выбрано %1$d отрезков</item>
+        <item quantity="other">Выбрано %1$d отрезка</item>
+    </plurals>
+    <plurals name="plan_calculation_mismatch">
+        <item quantity="one">%1$d размер не сходится с чертежом</item>
+        <item quantity="few">%1$d размера не сходятся с чертежом</item>
+        <item quantity="many">%1$d размеров не сходятся с чертежом</item>
+        <item quantity="other">%1$d размера не сходятся с чертежом</item>
+    </plurals>
 
     <!-- Projects -->
     <string name="project_new">Новый проект</string>

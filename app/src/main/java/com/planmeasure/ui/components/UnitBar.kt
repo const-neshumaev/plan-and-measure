@@ -34,6 +34,15 @@ fun LengthUnit.labelRes(): Int = when (this) {
     LengthUnit.INCHES -> R.string.unit_inches
 }
 
+/** Short label of the area unit derived from this length unit. */
+fun LengthUnit.areaLabelRes(): Int = when (this) {
+    LengthUnit.METERS -> R.string.unit_square_meters
+    LengthUnit.CENTIMETERS -> R.string.unit_square_centimeters
+    LengthUnit.MILLIMETERS -> R.string.unit_square_millimeters
+    LengthUnit.FEET -> R.string.unit_square_feet
+    LengthUnit.INCHES -> R.string.unit_square_inches
+}
+
 /**
  * Unit of the open document: one compact bar under the connection status.
  *

@@ -163,7 +163,10 @@ object PlanEditing {
             }
         }
 
-        return document.copy(contours = contours)
+        return document.copy(
+            contours = contours,
+            calculations = document.calculations.withoutEdge(edgeId),
+        )
             .withoutUnusedNodes()
             .let(PlanScale::normalize)
     }
@@ -223,7 +226,13 @@ object PlanEditing {
         }
         if (!replaced) return document
 
-        return PlanScale.normalize(document.copy(nodes = document.nodes + node, contours = contours))
+        return PlanScale.normalize(
+            document.copy(
+                nodes = document.nodes + node,
+                contours = contours,
+                calculations = document.calculations.withSplitEdge(edgeId, second.id),
+            ),
+        )
     }
 
     /**
@@ -284,7 +293,9 @@ object PlanEditing {
     }
 
     fun clearDrawing(document: PlanDocument): PlanDocument =
-        PlanScale.normalize(document.copy(nodes = emptyList(), contours = emptyList()))
+        PlanScale.normalize(
+            document.copy(nodes = emptyList(), contours = emptyList(), calculations = emptyList()),
+        )
 
     /**
      * Attaches [dimension] to the edge [edgeId] and refits the drawing, see [PlanScale].
@@ -320,6 +331,32 @@ object PlanEditing {
         val fitted = document.withWorldFittingDrawing()
         return if (fitted.mmPerUnit == null) fitted else fitted.withWorldTrimmedToDrawing()
     }
+
+    /** Keeps a length calculation total after one of its edges is split into two halves. */
+    private fun List<PlanCalculation>.withSplitEdge(
+        edgeId: String,
+        secondId: String,
+    ): List<PlanCalculation> = map { calculation ->
+        if (edgeId !in calculation.edgeIds) {
+            calculation
+        } else {
+            calculation.copy(
+                edgeIds = calculation.edgeIds.flatMap { id ->
+                    if (id == edgeId) listOf(id, secondId) else listOf(id)
+                },
+            )
+        }
+    }
+
+    /** Drops a removed edge from length calculations; area calculations are left to become invalid. */
+    private fun List<PlanCalculation>.withoutEdge(edgeId: String): List<PlanCalculation> =
+        map { calculation ->
+            if (edgeId !in calculation.edgeIds) {
+                calculation
+            } else {
+                calculation.copy(edgeIds = calculation.edgeIds.filterNot { it == edgeId })
+            }
+        }
 
     private fun List<PlanNode>.plusIfAbsent(node: PlanNode): List<PlanNode> =
         if (any { it.id == node.id }) this else this + node
