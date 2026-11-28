@@ -100,10 +100,79 @@ class PlanJsonTest {
         )
 
         assertEquals(plan, PlanJson.decode(PlanJson.encode(plan)))
-        assertEquals(5, plan.schemaVersion)
+        assertEquals(PLAN_SCHEMA_VERSION, plan.schemaVersion)
         assertEquals(LengthUnit.CENTIMETERS, plan.unit)
         assertEquals(500.0, plan.mmPerUnit ?: 0.0, 0.0)
         assertEquals("edge-1", plan.scaleEdgeId)
+    }
+
+    @Test
+    fun roundTripsCalculations() {
+        val plan = PlanDocument(
+            id = "00000000-0000-0000-0000-000000000006",
+            name = "Hall",
+            createdAt = 1_000L,
+            calculations = listOf(
+                PlanCalculation(
+                    id = "calculation-1",
+                    name = "Wall without window",
+                    kind = PlanCalculationKind.AREA,
+                    contourId = "contour-1",
+                    subtractHoles = true,
+                    createdAt = 2_000L,
+                    comment = "Window in the living room",
+                ),
+                PlanCalculation(
+                    id = "calculation-2",
+                    name = "Skirting",
+                    kind = PlanCalculationKind.LENGTH,
+                    edgeIds = listOf("edge-1", "edge-2"),
+                    createdAt = 3_000L,
+                ),
+            ),
+        )
+
+        assertEquals(plan, PlanJson.decode(PlanJson.encode(plan)))
+    }
+
+    @Test
+    fun readsACalculationWithoutComment() {
+        val text = """
+            {
+              "id": "00000000-0000-0000-0000-000000000008",
+              "name": "Hall",
+              "createdAt": 1,
+              "calculations": [
+                {
+                  "id": "calculation-1",
+                  "name": "Skirting",
+                  "kind": "LENGTH",
+                  "edgeIds": ["edge-1"],
+                  "createdAt": 2
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val plan = PlanJson.decode(text)
+
+        assertEquals("", plan.calculations.single().comment)
+    }
+
+    @Test
+    fun readsADocumentWithoutCalculations() {
+        val text = """
+            {
+              "schemaVersion": 5,
+              "id": "00000000-0000-0000-0000-000000000007",
+              "name": "Hall",
+              "createdAt": 1
+            }
+        """.trimIndent()
+
+        val plan = PlanJson.decode(text)
+
+        assertTrue(plan.calculations.isEmpty())
     }
 
     @Test

@@ -46,3 +46,4 @@ ADR не нужен для багфиксов, переименований, л�
 | [0017](0017-clean-project-references-on-delete.md) | Чистить ссылки проекта на удалённые объекты | Accepted | 2026-11-28 |
 | [0018](0018-drag-project-tree-rows.md) | Перетаскивать строки дерева проекта с подтверждением | Accepted | 2026-11-28 |
 | [0019](0019-default-nested-cards-and-project-scope.md) | Вложенные карточки и «Без проекта» по умолчанию | Accepted | 2026-11-28 |
+| [0020](0020-plan-calculations-from-geometry.md) | Считать площади, периметры и длины по геометрии плана | Accepted | 2026-11-28 |
